@@ -6,7 +6,7 @@ import cytoscape, {
 import edgehandles from "cytoscape-edgehandles";
 import { Core } from "cytoscape";
 import { EdgeHandlesInstance } from "cytoscape-edgehandles";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import deepCopy from "../utils/deepCopy";
 import CytoscapeComponent from "react-cytoscapejs";
 import euclideanDistance from "../utils/euclideanDistance";
@@ -19,7 +19,9 @@ import Algorithm from "../utils/Algorithm";
 import loadPreset, { buildCYEdge, Preset } from "../data/presets";
 import { buildCYNode } from "../data/presets";
 import sleep from "../utils/sleep";
+const avsdf = require("cytoscape-avsdf");
 
+cytoscape.use(avsdf);
 cytoscape.use(edgehandles);
 
 function Sandbox() {
@@ -33,6 +35,10 @@ function Sandbox() {
   const runSpeedRef = useRef<RunSpeed>(1.0);
   const [runSpeed, setRunSpeed] = useState<RunSpeed>(runSpeedRef.current);
   const stopIndicatorRef = useRef(false);
+  const [layout, setLayout] = useState<cytoscape.LayoutOptions>({
+    name: "preset",
+  });
+  const [selectedCYNodeId, setSelectedCYNodeId] = useState<string>();
 
   const _setRunProgress = (runProgress?: number) => {
     runProgressRef.current = runProgress;
@@ -96,9 +102,11 @@ function Sandbox() {
   };
 
   const setupCytoscape = (cy: cytoscape.Core) => {
+    if (cyCore.current === cy) return;
+
     // Setup cy core.
     cyCore.current = cy;
-    cyCore.current.on("dragfree", "node", (event) => {
+    cyCore.current.on("dragfreeon", "node", (event) => {
       const eventNode = event.target as NodeSingular;
       const copiedCYNodes = deepCopy(cyNodes);
       const node = copiedCYNodes.find(
@@ -140,6 +148,16 @@ function Sandbox() {
             cyEdge.data.target !== eventEdge.data().source)
       );
       setCYEdges(copiedCYEdges);
+    });
+    cy.on("select", "node", async (event) => {
+      const eventNode = event.target as NodeSingular;
+      setSelectedCYNodeId(eventNode.id());
+      await sleep(0);
+      cy.elements()
+        .not("#" + eventNode.id())
+        .unselect();
+
+      document.getElementById("cy-container")?.focus();
     });
 
     // Setup cy edgehandles.
@@ -192,6 +210,11 @@ function Sandbox() {
     }
 
     setDrawModeActive(active);
+    if (active) {
+      cyEdgeHandles.current?.enableDrawMode();
+    } else {
+      cyEdgeHandles.current?.disableDrawMode();
+    }
   };
 
   const handleRun = async () => {
@@ -253,10 +276,16 @@ function Sandbox() {
     stopIndicatorRef.current = false;
   };
 
-  const handleLoadPreset = (preset: Preset) => {
+  const handleLoadPreset = async (preset: Preset) => {
     const { cyNodes, cyEdges } = loadPreset(preset);
+    setLayout({ name: "preset" });
+    setCYNodes([]);
+    setCYEdges([]);
+    await sleep(0);
     setCYNodes(cyNodes);
     setCYEdges(cyEdges);
+    await sleep(0);
+    cyCore.current?.fit();
   };
 
   const handleAddNode = () => {
@@ -281,12 +310,35 @@ function Sandbox() {
     stopIndicatorRef.current = true;
   };
 
+  const handleKeyDown = (event: any) => {
+    if (!selectedCYNodeId) return;
+    if (event.key === "Enter" || event.key === "Escape") {
+      cyCore.current?.elements().unselect();
+      document.getElementById("cy-container")?.blur();
+      return;
+    }
+
+    const copiedCYNodes = deepCopy(cyNodes);
+    const cyNode = copiedCYNodes.find(
+      (cyNode) => cyNode.data.id === selectedCYNodeId
+    );
+    if (!cyNode) return;
+
+    if (!/^[a-zA-Z0-9_.\s-]$|Backspace/.test(event.key)) return;
+    if (event.key === "Backspace")
+      cyNode.data.label = cyNode.data.label.slice(0, -1);
+    else cyNode.data.label += event.key;
+    setCYNodes(copiedCYNodes);
+  };
+
   return (
-    <>
+    <div className="d-flex flex-column w-100 h-100">
       <Navigation
+        layout={layout}
         drawModeActive={drawModeActive}
         runProgress={runProgress}
         runSpeed={runSpeed}
+        onLayoutChange={setLayout}
         onDrawModeChange={handleDrawModeChange}
         onRunSpeedChange={_setRunSpeed}
         onConnectNNearestNodes={() => connectNNearestCYNodes(4)}
@@ -296,44 +348,62 @@ function Sandbox() {
         onRun={handleRun}
         onStop={handleStop}
       ></Navigation>
-      <CytoscapeComponent
-        className={`w-100 flex-grow-1 ${drawModeActive}`}
-        cy={setupCytoscape}
-        elements={CytoscapeComponent.normalizeElements({
-          nodes: cyNodes,
-          edges: cyEdges,
-        })}
-        wheelSensitivity={0.2}
-        layout={{ name: "preset" }}
-        stylesheet={[
-          {
-            selector: "node",
-            style: {
-              label: "data(label)",
-              width: "100%",
-              height: "100%",
-              "font-weight": "bold",
-              "background-color": "black",
-              "background-image": "data(imageUrl)",
-              "background-image-containment": "over",
-              "background-opacity": 0.0,
-              "background-width": "225%",
-              "background-height": "225%",
-              "background-offset-y": "10%",
+      <div
+        id="cy-container"
+        className="flex-grow-1"
+        tabIndex={-1}
+        onKeyDown={handleKeyDown}
+      >
+        <CytoscapeComponent
+          className="w-100 h-100"
+          cy={setupCytoscape}
+          elements={CytoscapeComponent.normalizeElements({
+            nodes: cyNodes,
+            edges: cyEdges,
+          })}
+          wheelSensitivity={0.2}
+          layout={layout}
+          boxSelectionEnabled={false}
+          stylesheet={[
+            {
+              selector: "node",
+              style: {
+                "selection-box-border-color": "#ff0000",
+                "selection-box-border-width": 5,
+                label: "data(label)",
+                width: "100%",
+                height: "100%",
+                "background-color": "black",
+                "background-image": "data(imageUrl)",
+                "background-image-containment": "over",
+                "background-opacity": 0.0,
+                "background-width": "225%",
+                "background-height": "225%",
+                "background-offset-y": "10%",
+              },
             },
-          },
-          {
-            selector: "edge",
-            style: {
-              width: 6,
-              "curve-style": "straight",
-              "line-style": "solid",
-              "line-color": "data(lineColor)",
+            {
+              selector: "node:selected",
+              css: {
+                "border-color": "#ffc107",
+                "border-style": "solid",
+                "border-width": 3,
+                color: "#ffc107",
+              },
             },
-          },
-        ]}
-      />
-    </>
+            {
+              selector: "edge",
+              style: {
+                width: 6,
+                "curve-style": "straight",
+                "line-style": "solid",
+                "line-color": "data(lineColor)",
+              },
+            },
+          ]}
+        />
+      </div>
+    </div>
   );
 }
 

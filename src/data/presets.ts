@@ -161,10 +161,11 @@ export function buildCYEdge(source: number, target: number): ElementDefinition {
 export function buildCYNode(
   id: number,
   position: { x: number; y: number },
-  label?: string
+  label = ""
 ): ElementDefinition {
   return {
     group: "nodes",
+    selected: false,
     data: {
       id: String(id),
       imageUrl: `${
@@ -173,7 +174,7 @@ export function buildCYNode(
         Math.floor(Math.random() * 21) + 1,
         2
       )}_NW.png`,
-      label: label ?? "",
+      label,
     },
     position,
   };

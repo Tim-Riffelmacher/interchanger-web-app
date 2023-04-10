@@ -13,7 +13,9 @@ function Navigation({
   drawModeActive,
   runProgress,
   runSpeed,
+  layout,
   onDrawModeChange,
+  onLayoutChange,
   onRunSpeedChange,
   onConnectNNearestNodes,
   onLoadPreset,
@@ -22,11 +24,13 @@ function Navigation({
   onRun,
   onStop,
 }: {
+  layout: cytoscape.LayoutOptions;
   drawModeActive: boolean;
   runProgress?: number;
   runSpeed: RunSpeed;
   onDrawModeChange: (active: boolean, action?: DrawModeAction) => void;
   onRunSpeedChange: (runSpeed: RunSpeed) => void;
+  onLayoutChange: (layout: cytoscape.LayoutOptions) => void;
   onConnectNNearestNodes: () => void;
   onLoadPreset: (preset: Preset) => void;
   onClear: (deleteScope: ClearScope) => void;
@@ -105,7 +109,7 @@ function Navigation({
                     />
                   </div>
                 ) : (
-                  <>
+                  <div className="d-flex align-items-center">
                     <Button
                       variant="outline-primary"
                       size="sm"
@@ -114,6 +118,58 @@ function Navigation({
                       <i className="bi bi-signpost-split-fill me-1"></i>Add
                       interchange
                     </Button>
+                    <NavDropdown
+                      title={`Layout (${layout.name})`}
+                      id="collasible-nav-dropdown-change-layout"
+                    >
+                      <NavDropdown.Item
+                        onClick={() =>
+                          onLayoutChange({ name: "circle", animate: true })
+                        }
+                      >
+                        Circle
+                      </NavDropdown.Item>
+                      <NavDropdown.Item
+                        onClick={() =>
+                          onLayoutChange({
+                            name: "concentric",
+                            minNodeSpacing: 100,
+                            concentric: (node) => node.degree(),
+                            animate: true,
+                          })
+                        }
+                      >
+                        Concentric
+                      </NavDropdown.Item>
+                      <NavDropdown.Item
+                        onClick={() =>
+                          onLayoutChange({ name: "grid", animate: true })
+                        }
+                      >
+                        Grid
+                      </NavDropdown.Item>
+                      <NavDropdown.Divider />
+                      <NavDropdown.Item
+                        onClick={() =>
+                          onLayoutChange({
+                            name: "avsdf",
+                            nodeSeparation: 200,
+                          } as cytoscape.LayoutOptions)
+                        }
+                      >
+                        Least overlapping
+                      </NavDropdown.Item>
+                      <NavDropdown.Item
+                        onClick={() =>
+                          onLayoutChange({
+                            name: "preset",
+                            animate: true,
+                          })
+                        }
+                      >
+                        <i className="bi bi-wrench me-1"></i>Custom
+                      </NavDropdown.Item>
+                    </NavDropdown>
                     <NavDropdown
                       title="Toolbox"
                       id="collasible-nav-dropdown-load-preset"
@@ -151,7 +207,7 @@ function Navigation({
                         All
                       </NavDropdown.Item>
                     </NavDropdown>
-                  </>
+                  </div>
                 )}
               </>
             )}
