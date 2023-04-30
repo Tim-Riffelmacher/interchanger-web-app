@@ -1,4 +1,4 @@
-import { Button, Container, Form, ProgressBar } from "react-bootstrap";
+import { Badge, Button, Container, Form, ProgressBar } from "react-bootstrap";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
 import NavDropdown from "react-bootstrap/NavDropdown";
@@ -14,6 +14,7 @@ function Navigation({
   runProgress,
   runSpeed,
   layout,
+  phaseNumber,
   onDrawModeChange,
   onLayoutChange,
   onRunSpeedChange,
@@ -28,6 +29,7 @@ function Navigation({
   drawModeActive: boolean;
   runProgress?: number;
   runSpeed: RunSpeed;
+  phaseNumber?: number;
   onDrawModeChange: (active: boolean, action?: DrawModeAction) => void;
   onRunSpeedChange: (runSpeed: RunSpeed) => void;
   onLayoutChange: (layout: cytoscape.LayoutOptions) => void;
@@ -83,6 +85,9 @@ function Navigation({
                       style={{ width: "20rem" }}
                       now={runProgress}
                     />
+                    <Badge className="me-4" bg="primary">
+                      {phaseNumber}
+                    </Badge>
                     <Form.Check
                       inline
                       checked={runSpeed === 0.5}

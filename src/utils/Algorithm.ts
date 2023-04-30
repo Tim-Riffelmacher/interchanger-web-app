@@ -1,5 +1,6 @@
 import Graph, { NodeId } from "./Graph";
 import { Node } from "./Graph";
+import randomAlternating from "./randomAlternating";
 
 export default class Algorithm<T> {
   public run(graph: Graph<T>) {
@@ -9,18 +10,27 @@ export default class Algorithm<T> {
       );
 
     const spanningTree = this.getArbitrarySpanningTree(graph);
-    let labelledNodes: Record<NodeId, [NodeId, NodeId]> = {};
+    let labelledNodes: Record<
+      NodeId,
+      { neighbourNodeId: NodeId; edge: [NodeId, NodeId] }
+    > = {};
 
-    const spanningTreeHistory = [spanningTree.clone(false)];
+    const spanningTreeHistory: { k: number; phase: Graph<T>[] }[] = [];
     let finished = false;
 
     while (!finished) {
       const k = spanningTree.getMaxNodeDegree();
 
+      const spanningTreeHistoryPhase: (typeof spanningTreeHistory)[0] = {
+        k,
+        phase: [],
+      };
+      if (spanningTreeHistory.length === 0)
+        spanningTreeHistoryPhase.phase.push(spanningTree.clone(false));
+
       let nodesOfDegreeK = spanningTree.getNodesOfDegree(k);
       let nodesOfDegreeKMinus1 = spanningTree.getNodesOfDegree(k - 1);
       while (nodesOfDegreeK.length !== 0) {
-        console.log("Removing node of degree " + k);
         let nodesOfDegreeKAndKMinus1 = [
           ...nodesOfDegreeK,
           ...nodesOfDegreeKMinus1,
@@ -34,13 +44,11 @@ export default class Algorithm<T> {
         );
         finished = outerComponentEdges.length === 0;
         if (finished) {
-          console.log("Finished");
           break;
         }
 
         while (outerComponentEdges.length !== 0) {
           const outerComponentEdge = outerComponentEdges[0];
-          console.log("Looking at outer component edge ", outerComponentEdge);
 
           const extendedSpanningTree = spanningTree.clone(false);
           extendedSpanningTree.addEdge(
@@ -62,10 +70,16 @@ export default class Algorithm<T> {
 
           if (cycleNodesOfDegreeK.length === 0) {
             for (const cycleNode of cycleNodesOfDegreeKMinus1) {
-              labelledNodes[cycleNode.nodeId] = [
-                outerComponentEdge[0].nodeId,
-                outerComponentEdge[1].nodeId,
-              ];
+              labelledNodes[cycleNode.nodeId] = {
+                neighbourNodeId: this.getRandomCycleNeighbourNodeId(
+                  cycle,
+                  cycleNode.nodeId
+                ),
+                edge: [
+                  outerComponentEdge[0].nodeId,
+                  outerComponentEdge[1].nodeId,
+                ],
+              };
               const nodeIndexToRemove = nodesOfDegreeKMinus1.findIndex(
                 (node) => cycleNode.nodeId === node.nodeId
               );
@@ -87,6 +101,16 @@ export default class Algorithm<T> {
           } else {
             const nodeToReduce = cycleNodesOfDegreeK[0];
             if (labelledNodes[outerComponentEdge[0].nodeId]) {
+              /*spanningTree.addEdge(
+                labelledNodes[outerComponentEdge[0].nodeId].edge[0],
+                labelledNodes[outerComponentEdge[0].nodeId].edge[1]
+              );
+
+              spanningTree.removeEdge(
+                nodeToReduce.nodeId,
+                labelledNodes[outerComponentEdge[0].nodeId].neighbourNodeId
+              );
+              spanningTreeHistory.push(spanningTree.clone(false));*/
             }
             if (labelledNodes[outerComponentEdge[1].nodeId]) {
             }
@@ -94,16 +118,16 @@ export default class Algorithm<T> {
               outerComponentEdge[0].nodeId,
               outerComponentEdge[1].nodeId
             );
-            const neighbourNodeIndex =
-              (cycle.findIndex((node) => node.nodeId === nodeToReduce.nodeId) +
-                1) %
-              cycle.length;
+            const neighbourNodeIndex = this.getRandomCycleNeighbourNodeId(
+              cycle,
+              nodeToReduce.nodeId
+            );
             // TODO(Trm): CHECK NODE INDEX
             spanningTree.removeEdge(
               nodeToReduce.nodeId,
               cycle[neighbourNodeIndex].nodeId
             );
-            spanningTreeHistory.push(spanningTree.clone(false));
+            spanningTreeHistoryPhase.phase.push(spanningTree.clone(false));
             break;
           }
         }
@@ -111,9 +135,23 @@ export default class Algorithm<T> {
         nodesOfDegreeK = spanningTree.getNodesOfDegree(k);
         nodesOfDegreeKMinus1 = spanningTree.getNodesOfDegree(k - 1);
       }
+
+      spanningTreeHistory.push(spanningTreeHistoryPhase);
     }
 
     return spanningTreeHistory;
+  }
+
+  private getRandomCycleNeighbourNodeId(
+    cycle: Node<T>[],
+    nodeIdToReduce: NodeId
+  ) {
+    const nodeIndex = cycle.findIndex((node) => node.nodeId === nodeIdToReduce);
+    if (nodeIndex < 0)
+      throw new Error(
+        "Random neighbour in cycle can't be retrieved, because the node that should be reduced doesn't exist."
+      );
+    return (nodeIndex + randomAlternating()) % cycle.length;
   }
 
   public getArbitrarySpanningTree(graph: Graph<T>) {
@@ -212,4 +250,6 @@ export default class Algorithm<T> {
 
     return outerComponentEdges;
   }
+
+  public doLocalMoves() {}
 }

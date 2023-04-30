@@ -39,6 +39,7 @@ function Sandbox() {
     name: "preset",
   });
   const [selectedCYNodeId, setSelectedCYNodeId] = useState<string>();
+  const [phaseNumber, setPhaseNumber] = useState<number>();
 
   const _setRunProgress = (runProgress?: number) => {
     runProgressRef.current = runProgress;
@@ -246,33 +247,41 @@ function Sandbox() {
     const spanningTreeHistory = algorithm.run(graph);
     const historyLength = spanningTreeHistory.length;
     while (spanningTreeHistory.length !== 0) {
-      if (stopIndicatorRef.current) break;
+      const spanningTreePhase = spanningTreeHistory.shift();
+      if (!spanningTreePhase) break;
 
-      const spanningTree = spanningTreeHistory.shift();
-      if (!spanningTree) break;
+      setPhaseNumber(spanningTreePhase.k);
 
-      const copiedCYEdges = deepCopy(cyEdges);
-      copiedCYEdges.forEach((cyEdge) => {
-        if (
-          spanningTree
-            .getFlatEdges()
-            .some(
-              (edge) =>
-                (cyEdge.data.source === edge[0].nodeId &&
-                  cyEdge.data.target === edge[1].nodeId) ||
-                (cyEdge.data.target === edge[0].nodeId &&
-                  cyEdge.data.source === edge[1].nodeId)
-            )
-        )
-          cyEdge.data.lineColor = "#0d6efd";
-        else cyEdge.data.lineColor = "#ccc";
-      });
-      setCYEdges(copiedCYEdges);
-      _setRunProgress(100 * (1 - spanningTreeHistory.length / historyLength));
+      while (spanningTreePhase.phase.length !== 0) {
+        const spanningTreeRecord = spanningTreePhase.phase.shift();
+        if (!spanningTreeRecord) break;
 
-      await sleep(1500 * (1 / runSpeedRef.current));
+        if (stopIndicatorRef.current) break;
+
+        const copiedCYEdges = deepCopy(cyEdges);
+        for (const cyEdge of copiedCYEdges) {
+          if (
+            spanningTreeRecord
+              .getFlatEdges()
+              .some(
+                (edge) =>
+                  (cyEdge.data.source === edge[0].nodeId &&
+                    cyEdge.data.target === edge[1].nodeId) ||
+                  (cyEdge.data.target === edge[0].nodeId &&
+                    cyEdge.data.source === edge[1].nodeId)
+              )
+          )
+            cyEdge.data.lineColor = "#0d6efd";
+          else cyEdge.data.lineColor = "#ccc";
+        }
+        setCYEdges(copiedCYEdges);
+        _setRunProgress(100 * (1 - spanningTreeHistory.length / historyLength));
+
+        await sleep(1500 * (1 / runSpeedRef.current));
+      }
     }
     _setRunProgress(undefined);
+    setPhaseNumber(undefined);
     stopIndicatorRef.current = false;
   };
 
@@ -336,6 +345,7 @@ function Sandbox() {
       <Navigation
         layout={layout}
         drawModeActive={drawModeActive}
+        phaseNumber={phaseNumber}
         runProgress={runProgress}
         runSpeed={runSpeed}
         onLayoutChange={setLayout}
