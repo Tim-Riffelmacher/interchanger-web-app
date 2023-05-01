@@ -32,6 +32,9 @@ function Sandbox() {
   const [drawModeActive, setDrawModeActive] = useState(false);
   const runProgressRef = useRef<number>();
   const [runProgress, setRunProgress] = useState<number>();
+  const [progressBarVariant, setProgressBarVariant] = useState<
+    "primary" | "warning"
+  >("primary");
   const runSpeedRef = useRef<RunSpeed>(1.0);
   const [runSpeed, setRunSpeed] = useState<RunSpeed>(runSpeedRef.current);
   const stopIndicatorRef = useRef(false);
@@ -245,42 +248,76 @@ function Sandbox() {
 
     const algorithm = new Algorithm();
     const spanningTreeHistory = algorithm.run(graph);
-    const historyLength = spanningTreeHistory.length;
-    while (spanningTreeHistory.length !== 0) {
-      const spanningTreePhase = spanningTreeHistory.shift();
-      if (!spanningTreePhase) break;
 
+    // Calculate overall history length.
+    let composedHistoryLength = 0;
+    for (const spanningTreePhase of spanningTreeHistory) {
+      composedHistoryLength += spanningTreePhase.phase.length;
+      for (const spanningTreeRecord of spanningTreePhase.phase) {
+        composedHistoryLength += spanningTreeRecord.propagatedMoves.length;
+      }
+    }
+
+    let composedHistoryIndex = 0;
+    let lastMove = spanningTreeHistory[0].phase[0].move;
+    for (const spanningTreePhase of spanningTreeHistory) {
       setPhaseNumber(spanningTreePhase.k);
 
-      while (spanningTreePhase.phase.length !== 0) {
-        const spanningTreeRecord = spanningTreePhase.phase.shift();
-        if (!spanningTreeRecord) break;
-
-        if (stopIndicatorRef.current) break;
-
-        const copiedCYEdges = deepCopy(cyEdges);
-        for (const cyEdge of copiedCYEdges) {
-          if (
-            spanningTreeRecord
-              .getFlatEdges()
-              .some(
-                (edge) =>
-                  (cyEdge.data.source === edge[0].nodeId &&
-                    cyEdge.data.target === edge[1].nodeId) ||
-                  (cyEdge.data.target === edge[0].nodeId &&
-                    cyEdge.data.source === edge[1].nodeId)
-              )
-          )
-            cyEdge.data.lineColor = "#0d6efd";
-          else cyEdge.data.lineColor = "#ccc";
+      for (const spanningTreeRecord of spanningTreePhase.phase) {
+        const composedMoves = [spanningTreeRecord.move];
+        if (spanningTreeRecord.propagatedMoves.length !== 0) {
+          composedMoves.unshift(
+            spanningTreeRecord.propagatedMoves[
+              spanningTreeRecord.propagatedMoves.length - 1
+            ]
+          );
+          composedMoves.unshift(...spanningTreeRecord.propagatedMoves);
+          composedMoves.unshift(lastMove);
         }
-        setCYEdges(copiedCYEdges);
-        _setRunProgress(100 * (1 - spanningTreeHistory.length / historyLength));
 
-        await sleep(1500 * (1 / runSpeedRef.current));
+        for (let i = 0; i < composedMoves.length; i++) {
+          if (stopIndicatorRef.current) break;
+
+          const singleMove = composedMoves[i];
+
+          const copiedCYEdges = deepCopy(cyEdges);
+          for (const cyEdge of copiedCYEdges) {
+            if (
+              singleMove
+                .getFlatEdges()
+                .some(
+                  (edge) =>
+                    (cyEdge.data.source === edge[0].nodeId &&
+                      cyEdge.data.target === edge[1].nodeId) ||
+                    (cyEdge.data.target === edge[0].nodeId &&
+                      cyEdge.data.source === edge[1].nodeId)
+                )
+            )
+              cyEdge.data.lineColor =
+                i < composedMoves.length - 2 ? "#ffc107" : "#0d6efd";
+            else cyEdge.data.lineColor = "#ccc";
+          }
+          setCYEdges(copiedCYEdges);
+
+          if (i < composedMoves.length - 2) setProgressBarVariant("warning");
+          else setProgressBarVariant("primary");
+
+          if (
+            composedMoves.length === 1 ||
+            (i !== 0 && i !== composedMoves.length - 2)
+          )
+            composedHistoryIndex++;
+          _setRunProgress(100 * (composedHistoryIndex / composedHistoryLength));
+
+          if (runSpeedRef.current !== "Skip")
+            await sleep(1500 * (1 / runSpeedRef.current));
+        }
+
+        lastMove = spanningTreeRecord.move;
       }
     }
     _setRunProgress(undefined);
+    _setRunSpeed(1.0);
     setPhaseNumber(undefined);
     stopIndicatorRef.current = false;
   };
@@ -319,6 +356,10 @@ function Sandbox() {
     stopIndicatorRef.current = true;
   };
 
+  const handleSkip = () => {
+    _setRunSpeed("Skip");
+  };
+
   const handleKeyDown = (event: any) => {
     if (!selectedCYNodeId) return;
     if (event.key === "Enter" || event.key === "Escape") {
@@ -344,6 +385,7 @@ function Sandbox() {
     <div className="d-flex flex-column w-100 h-100">
       <Navigation
         layout={layout}
+        progressBarVariant={progressBarVariant}
         drawModeActive={drawModeActive}
         phaseNumber={phaseNumber}
         runProgress={runProgress}
@@ -357,6 +399,7 @@ function Sandbox() {
         onAddNode={handleAddNode}
         onRun={handleRun}
         onStop={handleStop}
+        onSkip={handleSkip}
       ></Navigation>
       <div
         id="cy-container"

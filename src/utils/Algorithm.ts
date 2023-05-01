@@ -2,6 +2,11 @@ import Graph, { NodeId } from "./Graph";
 import { Node } from "./Graph";
 import randomAlternating from "./randomAlternating";
 
+type LabelledNode = Record<
+  NodeId,
+  { neighbourNodeId: NodeId; edge: [NodeId, NodeId] }
+>;
+
 export default class Algorithm<T> {
   public run(graph: Graph<T>) {
     if (graph.breadthFirstSearch().length !== 1)
@@ -15,7 +20,10 @@ export default class Algorithm<T> {
       { neighbourNodeId: NodeId; edge: [NodeId, NodeId] }
     > = {};
 
-    const spanningTreeHistory: { k: number; phase: Graph<T>[] }[] = [];
+    const spanningTreeHistory: {
+      k: number;
+      phase: { move: Graph<T>; propagatedMoves: Graph<T>[] }[];
+    }[] = [];
     let finished = false;
 
     while (!finished) {
@@ -26,7 +34,10 @@ export default class Algorithm<T> {
         phase: [],
       };
       if (spanningTreeHistory.length === 0)
-        spanningTreeHistoryPhase.phase.push(spanningTree.clone(false));
+        spanningTreeHistoryPhase.phase.push({
+          move: spanningTree.clone(false),
+          propagatedMoves: [],
+        });
 
       let nodesOfDegreeK = spanningTree.getNodesOfDegree(k);
       let nodesOfDegreeKMinus1 = spanningTree.getNodesOfDegree(k - 1);
@@ -71,10 +82,10 @@ export default class Algorithm<T> {
           if (cycleNodesOfDegreeK.length === 0) {
             for (const cycleNode of cycleNodesOfDegreeKMinus1) {
               labelledNodes[cycleNode.nodeId] = {
-                neighbourNodeId: this.getRandomCycleNeighbourNodeId(
+                neighbourNodeId: this.getRandomCycleNeighbourNode(
                   cycle,
                   cycleNode.nodeId
-                ),
+                ).nodeId,
                 edge: [
                   outerComponentEdge[0].nodeId,
                   outerComponentEdge[1].nodeId,
@@ -100,34 +111,60 @@ export default class Algorithm<T> {
             );
           } else {
             const nodeToReduce = cycleNodesOfDegreeK[0];
-            if (labelledNodes[outerComponentEdge[0].nodeId]) {
-              /*spanningTree.addEdge(
-                labelledNodes[outerComponentEdge[0].nodeId].edge[0],
-                labelledNodes[outerComponentEdge[0].nodeId].edge[1]
-              );
+            const propagatedMoves: Graph<T>[] = [];
+
+            // Propagate local moves if necessary so nodes of degree k-1 are not accidentally of degree k after finishing the current subphase.
+            const nodeIdsForPotentialPropagate = [
+              outerComponentEdge[0].nodeId,
+              outerComponentEdge[1].nodeId,
+            ];
+            while (nodeIdsForPotentialPropagate.length !== 0) {
+              const nodeIdForPotentialPropagate =
+                nodeIdsForPotentialPropagate.shift();
+              if (!nodeIdForPotentialPropagate) break;
+              const labelledNode = labelledNodes[nodeIdForPotentialPropagate];
+              if (!labelledNode) continue;
+
+              spanningTree.addEdge(labelledNode.edge[0], labelledNode.edge[1]);
 
               spanningTree.removeEdge(
-                nodeToReduce.nodeId,
-                labelledNodes[outerComponentEdge[0].nodeId].neighbourNodeId
+                nodeIdForPotentialPropagate,
+                labelledNode.neighbourNodeId
               );
-              spanningTreeHistory.push(spanningTree.clone(false));*/
+
+              console.log(
+                labelledNode.edge[0],
+                labelledNode.edge[1],
+                nodeIdForPotentialPropagate,
+                labelledNode.neighbourNodeId
+              );
+
+              propagatedMoves.push(spanningTree.clone(false));
             }
-            if (labelledNodes[outerComponentEdge[1].nodeId]) {
-            }
+
+            // Now really reduce the degree.
             spanningTree.addEdge(
               outerComponentEdge[0].nodeId,
               outerComponentEdge[1].nodeId
             );
-            const neighbourNodeIndex = this.getRandomCycleNeighbourNodeId(
+
+            const neighbourNode = this.getRandomCycleNeighbourNode(
               cycle,
               nodeToReduce.nodeId
             );
-            // TODO(Trm): CHECK NODE INDEX
-            spanningTree.removeEdge(
+            spanningTree.removeEdge(nodeToReduce.nodeId, neighbourNode.nodeId);
+            console.log(
+              "AAA",
+              outerComponentEdge[0].nodeId,
+              outerComponentEdge[1].nodeId,
               nodeToReduce.nodeId,
-              cycle[neighbourNodeIndex].nodeId
+              neighbourNode.nodeId
             );
-            spanningTreeHistoryPhase.phase.push(spanningTree.clone(false));
+
+            spanningTreeHistoryPhase.phase.push({
+              move: spanningTree.clone(false),
+              propagatedMoves,
+            });
             break;
           }
         }
@@ -142,19 +179,28 @@ export default class Algorithm<T> {
     return spanningTreeHistory;
   }
 
-  private getRandomCycleNeighbourNodeId(
-    cycle: Node<T>[],
-    nodeIdToReduce: NodeId
-  ) {
-    const nodeIndex = cycle.findIndex((node) => node.nodeId === nodeIdToReduce);
+  /**
+   * Returns a random neighbour node that lives in the same cycle as the provided one.
+   * @param cycle The cycle of nodes.
+   * @param nodeId The node id of the node whose random neighbour node should be returned.
+   * @returns The random neighbour node.
+   */
+  private getRandomCycleNeighbourNode(cycle: Node<T>[], nodeId: NodeId) {
+    const nodeIndex = cycle.findIndex((node) => node.nodeId === nodeId);
     if (nodeIndex < 0)
       throw new Error(
         "Random neighbour in cycle can't be retrieved, because the node that should be reduced doesn't exist."
       );
-    return (nodeIndex + randomAlternating()) % cycle.length;
+    return cycle[(nodeIndex + 1) % cycle.length]; // TODO(trm): Only for testing non random!
   }
 
-  public getArbitrarySpanningTree(graph: Graph<T>) {
+  /**
+   * Returns an arbitrary spanning tree based on the provided graph.
+   * The spanning tree is determined via BFS.
+   * @param graph The graph.
+   * @returns An arbitrary spanning tree.
+   */
+  private getArbitrarySpanningTree(graph: Graph<T>) {
     const visitedEdges = graph.breadthFirstSearch()[0].edges;
     const spanningTree = graph.clone(true);
 
@@ -250,6 +296,4 @@ export default class Algorithm<T> {
 
     return outerComponentEdges;
   }
-
-  public doLocalMoves() {}
 }
