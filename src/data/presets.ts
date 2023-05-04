@@ -8,7 +8,7 @@ export default function loadPreset(preset: Preset) {
   const cyEdges: ElementDefinition[] = [];
   switch (preset) {
     case "Germany":
-      loadGermanyPreset(cyNodes, cyEdges);
+      loadGermanyPreset(cyNodes);
       break;
     case "Star":
       loadStarPreset(cyNodes, cyEdges);
@@ -24,10 +24,7 @@ export default function loadPreset(preset: Preset) {
   return { cyNodes, cyEdges };
 }
 
-function loadGermanyPreset(
-  cyNodes: ElementDefinition[],
-  cyEdges: ElementDefinition[]
-) {
+function loadGermanyPreset(cyNodes: ElementDefinition[]) {
   cyNodes.push(
     buildCYNode(0, { x: 1077, y: -354 }, "Stralsund"),
     buildCYNode(1, { x: 1048, y: 113 }, "Potsdam"),

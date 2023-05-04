@@ -31,7 +31,9 @@ function TutorialModal({
             <Accordion.Header>
               <span className="fw-semibold">Presets</span>
             </Accordion.Header>
-            <Accordion.Body>test</Accordion.Body>
+            <Accordion.Body>
+              There are mutlitple presets that you can load into the sandbox.
+            </Accordion.Body>
           </Accordion.Item>
           <Accordion.Item eventKey="2">
             <Accordion.Header>

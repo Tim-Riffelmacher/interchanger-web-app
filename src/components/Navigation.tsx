@@ -22,6 +22,8 @@ function Navigation({
   onLayoutChange,
   onRunSpeedChange,
   onConnectNNearestNodes,
+  onConnectAllNodes,
+  onDeleteUnmarkedEdges,
   onLoadPreset,
   onClear,
   onAddNode,
@@ -39,6 +41,8 @@ function Navigation({
   onRunSpeedChange: (runSpeed: RunSpeed) => void;
   onLayoutChange: (layout: cytoscape.LayoutOptions) => void;
   onConnectNNearestNodes: () => void;
+  onConnectAllNodes: () => void;
+  onDeleteUnmarkedEdges: () => void;
   onLoadPreset: (preset: Preset) => void;
   onClear: (deleteScope: ClearScope) => void;
   onAddNode: () => void;
@@ -194,15 +198,23 @@ function Navigation({
                           <i className="bi bi-wrench me-1"></i>Custom
                         </NavDropdown.Item>
                       </NavDropdown>
-                      <NavDropdown
-                        title="Toolbox"
-                        id="collasible-nav-dropdown-load-preset"
-                      >
+                      <NavDropdown title="Toolbox">
                         <NavDropdown.Item
                           onClick={() => onConnectNNearestNodes()}
                         >
-                          <i className="bi-bounding-box-circles me-1"></i>
-                          Connect nearest interchanges
+                          <i className="bi-diagram-3-fill me-1"></i>
+                          Connect 5 nearest interchanges
+                        </NavDropdown.Item>
+                        <NavDropdown.Item onClick={() => onConnectAllNodes()}>
+                          <i className="bi-star-fill me-1"></i>
+                          Connect all interchanges
+                        </NavDropdown.Item>
+                        <NavDropdown.Divider />
+                        <NavDropdown.Item
+                          onClick={() => onDeleteUnmarkedEdges()}
+                        >
+                          <i className="bi bi-car-front-fill me-1"></i>Keep
+                          roads only
                         </NavDropdown.Item>
                       </NavDropdown>
                       <NavDropdown
