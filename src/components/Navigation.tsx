@@ -5,20 +5,23 @@ import Navbar from "react-bootstrap/Navbar";
 import NavDropdown from "react-bootstrap/NavDropdown";
 import { Preset } from "../data/presets";
 import InfoTooltip from "./InfoTooltip";
-import TutorialModal from "./TutorialModal";
+import ConnectNNearestNodesModal from "./modals/ConnectNNearestNodesModal";
+import TutorialModal from "./modals/TutorialModal";
 
-export type DrawModeAction = "Ok" | "Cancel";
+export type EditModeAction = "Ok" | "Cancel";
 export type ClearScope = "Connections" | "All";
 export type RunSpeed = 0.5 | 1.0 | 2.0 | "Skip";
+export type EditMode = "Move" | "Draw" | "Delete";
 
 function Navigation({
-  drawModeActive,
+  editMode,
   runProgress,
   runSpeed,
   layout,
   phaseNumber,
+  maxConnectNearestNodesN,
   progressBarVariant,
-  onDrawModeChange,
+  onEditModeChange,
   onLayoutChange,
   onRunSpeedChange,
   onConnectNNearestNodes,
@@ -32,15 +35,16 @@ function Navigation({
   onSkip,
 }: {
   layout: cytoscape.LayoutOptions;
-  drawModeActive: boolean;
+  editMode: EditMode;
   runProgress?: number;
   runSpeed: RunSpeed;
   phaseNumber?: number;
+  maxConnectNearestNodesN: number;
   progressBarVariant: "primary" | "warning";
-  onDrawModeChange: (active: boolean, action?: DrawModeAction) => void;
+  onEditModeChange: (editMode: EditMode, action?: EditModeAction) => void;
   onRunSpeedChange: (runSpeed: RunSpeed) => void;
   onLayoutChange: (layout: cytoscape.LayoutOptions) => void;
-  onConnectNNearestNodes: () => void;
+  onConnectNNearestNodes: (n: number) => void;
   onConnectAllNodes: () => void;
   onDeleteUnmarkedEdges: () => void;
   onLoadPreset: (preset: Preset) => void;
@@ -51,6 +55,15 @@ function Navigation({
   onSkip: () => void;
 }) {
   const [showTutorialModal, setShowTutorialModal] = useState(false);
+  const [showConnectNNearestNodesModal, setShowConnectNNearestNodesModal] =
+    useState(false);
+
+  const handleConnectNNearestNodes = (n: number) => {
+    setShowConnectNNearestNodesModal(false);
+    onConnectNNearestNodes(n);
+  };
+
+  const handleRenameNode = (name: string) => {};
 
   return (
     <>
@@ -69,10 +82,10 @@ function Navigation({
           <Navbar.Toggle aria-controls="responsive-navbar-nav" />
           <Navbar.Collapse id="responsive-navbar-nav">
             <Nav className="me-auto">
-              {drawModeActive ? (
+              {editMode !== "Move" ? (
                 <Button
                   variant="danger"
-                  onClick={() => onDrawModeChange(false, "Cancel")}
+                  onClick={() => onEditModeChange("Move")}
                 >
                   <i className="bi bi-arrow-counterclockwise me-1"></i>Undo
                 </Button>
@@ -200,12 +213,16 @@ function Navigation({
                       </NavDropdown>
                       <NavDropdown title="Toolbox">
                         <NavDropdown.Item
-                          onClick={() => onConnectNNearestNodes()}
+                          disabled={maxConnectNearestNodesN < 1}
+                          onClick={() => setShowConnectNNearestNodesModal(true)}
                         >
                           <i className="bi-diagram-3-fill me-1"></i>
-                          Connect 5 nearest interchanges
+                          Connect n nearest interchanges
                         </NavDropdown.Item>
-                        <NavDropdown.Item onClick={() => onConnectAllNodes()}>
+                        <NavDropdown.Item
+                          disabled={maxConnectNearestNodesN < 1}
+                          onClick={() => onConnectAllNodes()}
+                        >
                           <i className="bi-star-fill me-1"></i>
                           Connect all interchanges
                         </NavDropdown.Item>
@@ -259,13 +276,27 @@ function Navigation({
                 <div className="d-flex align-items-center">
                   <Form.Check
                     inline
-                    type="switch"
+                    checked={editMode === "Move"}
+                    className="text-secondary"
+                    label="Normal"
+                    onChange={() => onEditModeChange("Move")}
+                    type="radio"
+                  />
+                  <Form.Check
+                    inline
+                    checked={editMode === "Draw"}
+                    className="text-secondary"
                     label="Draw"
-                    checked={drawModeActive}
-                    onChange={(event) =>
-                      onDrawModeChange(event.target.checked, "Ok")
-                    }
-                    className="text-light"
+                    onChange={() => onEditModeChange("Draw")}
+                    type="radio"
+                  />
+                  <Form.Check
+                    inline
+                    checked={editMode === "Delete"}
+                    className="text-secondary"
+                    label="Erase"
+                    onChange={() => onEditModeChange("Delete")}
+                    type="radio"
                   />
                   <InfoTooltip infoText="Turn on/off draw mode. When draw mode is active you can create connections between interchanges. Do this by holding your mouse down on an interchange and dragging the line to the interchange you want to connect."></InfoTooltip>
                   <Nav.Link onClick={() => setShowTutorialModal(true)}>
@@ -281,6 +312,12 @@ function Navigation({
         show={showTutorialModal}
         onShowChange={(show) => setShowTutorialModal(show)}
       ></TutorialModal>
+      <ConnectNNearestNodesModal
+        maxN={maxConnectNearestNodesN}
+        show={showConnectNNearestNodesModal}
+        onOk={handleConnectNNearestNodes}
+        onCancel={() => setShowConnectNNearestNodesModal(false)}
+      ></ConnectNNearestNodesModal>
     </>
   );
 }

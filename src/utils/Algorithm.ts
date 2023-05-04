@@ -153,13 +153,6 @@ export default class Algorithm<T> {
               nodeToReduce.nodeId
             );
             spanningTree.removeEdge(nodeToReduce.nodeId, neighbourNode.nodeId);
-            console.log(
-              "AAA",
-              outerComponentEdge[0].nodeId,
-              outerComponentEdge[1].nodeId,
-              nodeToReduce.nodeId,
-              neighbourNode.nodeId
-            );
 
             spanningTreeHistoryPhase.phase.push({
               move: spanningTree.clone(false),

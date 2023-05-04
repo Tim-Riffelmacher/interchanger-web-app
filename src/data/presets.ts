@@ -151,6 +151,7 @@ export function buildCYEdge(source: number, target: number): ElementDefinition {
       source: String(source),
       target: String(target),
       lineColor: "#ccc",
+      marked: false,
     },
   };
 }

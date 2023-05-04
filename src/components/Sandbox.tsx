@@ -6,13 +6,13 @@ import cytoscape, {
 import edgehandles from "cytoscape-edgehandles";
 import { Core } from "cytoscape";
 import { EdgeHandlesInstance } from "cytoscape-edgehandles";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import deepCopy from "../utils/deepCopy";
 import CytoscapeComponent from "react-cytoscapejs";
 import euclideanDistance from "../utils/euclideanDistance";
 import swapElements from "../utils/swapElements";
 import buildEdgeId from "../utils/buildEdgeId";
-import Navigation, { ClearScope, DrawModeAction, RunSpeed } from "./Navigation";
+import Navigation, { ClearScope, EditModeAction, RunSpeed } from "./Navigation";
 import Graph from "../utils/Graph";
 import { NodeId } from "../utils/Graph";
 import Algorithm from "../utils/Algorithm";
@@ -20,6 +20,8 @@ import loadPreset, { buildCYEdge, Preset } from "../data/presets";
 import { buildCYNode } from "../data/presets";
 import sleep from "../utils/sleep";
 import equalId from "../utils/equalId";
+import RenameNodeModal from "./modals/RenameNodeModal";
+import { EditMode } from "./Navigation";
 const avsdf = require("cytoscape-avsdf");
 
 cytoscape.use(avsdf);
@@ -37,7 +39,7 @@ function Sandbox() {
   const cyEdgesRef = useRef<ElementDefinition[]>([]);
   cyEdgesRef.current = cyEdges;
 
-  const [drawModeActive, setDrawModeActive] = useState(false);
+  const [editMode, setEditMode] = useState<EditMode>("Move");
   const runProgressRef = useRef<number>();
   const [runProgress, setRunProgress] = useState<number>();
   const [progressBarVariant, setProgressBarVariant] = useState<
@@ -49,8 +51,9 @@ function Sandbox() {
   const [layout, setLayout] = useState<cytoscape.LayoutOptions>({
     name: "preset",
   });
-  const [selectedCYNodeId, setSelectedCYNodeId] = useState<string>();
+  const [cyNodeIdForRename, setCYNodeIdForRename] = useState<NodeId>();
   const [phaseNumber, setPhaseNumber] = useState<number>();
+  const [showRenameNodeModal, setShowRenameNodeModal] = useState(false);
 
   const _setRunProgress = (runProgress?: number) => {
     runProgressRef.current = runProgress;
@@ -128,7 +131,8 @@ function Sandbox() {
       node["position"] = eventNode.position();
       setCYNodes(copiedCYNodes);
     });
-    cy.on("cxttap", "node", (event) => {
+    cy.on("select", "node", (event) => {
+      // TODO
       if (runProgressRef.current !== undefined) return;
 
       const eventNode = event.target as NodeSingular;
@@ -148,7 +152,8 @@ function Sandbox() {
       setCYEdges(copiedCYEdges);
       setCYNodes(copiedCYNodes);
     });
-    cy.on("cxttap", "edge", (event) => {
+    cy.on("select", "edge", (event) => {
+      // TODO
       if (runProgressRef.current !== undefined) return;
 
       const eventEdge = event.target as EdgeSingular;
@@ -161,15 +166,10 @@ function Sandbox() {
       );
       setCYEdges(copiedCYEdges);
     });
-    cy.on("select", "node", async (event) => {
+    cy.on("cxttap", "node", async (event) => {
       const eventNode = event.target as NodeSingular;
-      setSelectedCYNodeId(eventNode.id());
-      await sleep(0);
-      cy.elements()
-        .not("#" + eventNode.id())
-        .unselect();
-
-      document.getElementById("cy-container")?.focus();
+      setCYNodeIdForRename(eventNode.id());
+      setShowRenameNodeModal(true);
     });
 
     // Setup cy edgehandles.
@@ -189,15 +189,15 @@ function Sandbox() {
         return buildCYEdge(Number(sourceNode.id()), Number(targetNode.id()));
       },
     });
-    if (drawModeActive) {
+    if (editMode) {
       cyEdgeHandles.current.enableDrawMode();
     } else {
       cyEdgeHandles.current.disableDrawMode();
     }
   };
 
-  const handleDrawModeChange = (active: boolean, action?: DrawModeAction) => {
-    if (!active) {
+  const handleEditModeChange = (editMode: EditMode) => {
+    /*if (!active) {
       if (!action)
         throw new Error("Action is required if draw mode changes to inactive.");
       if (!cyCore.current)
@@ -219,10 +219,10 @@ function Sandbox() {
           cyCore.current.remove(`#${currentCYEdge.id()}`);
         }
       }
-    }
+    }*/
 
-    setDrawModeActive(active);
-    if (active) {
+    setEditMode(editMode);
+    if (editMode) {
       cyEdgeHandles.current?.enableDrawMode();
     } else {
       cyEdgeHandles.current?.disableDrawMode();
@@ -372,27 +372,6 @@ function Sandbox() {
     _setRunSpeed("Skip");
   };
 
-  const handleKeyDown = (event: any) => {
-    if (!selectedCYNodeId) return;
-    if (event.key === "Enter" || event.key === "Escape") {
-      cyCore.current?.elements().unselect();
-      document.getElementById("cy-container")?.blur();
-      return;
-    }
-
-    const copiedCYNodes = deepCopy(cyNodes);
-    const cyNode = copiedCYNodes.find(
-      (cyNode) => cyNode.data.id === selectedCYNodeId
-    );
-    if (!cyNode) return;
-
-    if (!/^[a-zA-Z0-9_.\s-]$|Backspace/.test(event.key)) return;
-    if (event.key === "Backspace")
-      cyNode.data.label = cyNode.data.label.slice(0, -1);
-    else cyNode.data.label += event.key;
-    setCYNodes(copiedCYNodes);
-  };
-
   const deleteUnmarkedEdges = () => {
     const copiedCyEdges = deepCopy(cyEdges).filter(
       (cyEdge) => cyEdge.data.marked
@@ -400,84 +379,109 @@ function Sandbox() {
     setCYEdges(copiedCyEdges);
   };
 
+  const handleRenameNode = (name: string) => {
+    const copiedCyNodes = deepCopy(cyNodes);
+    const cyNode = copiedCyNodes.find((cyNode) =>
+      equalId(cyNode.data.id, cyNodeIdForRename)
+    );
+    if (!cyNode)
+      throw new Error(
+        "Node can't be renamed, because there is no node with the provided id."
+      );
+    cyNode.data.label = name;
+    setCYNodes(copiedCyNodes);
+    setShowRenameNodeModal(false);
+  };
+
+  const provideOldNodeNameForRename = () => {
+    const cyNode = cyNodes.find((cyNode) =>
+      equalId(cyNode.data.id, cyNodeIdForRename)
+    );
+    return cyNode?.data.label;
+  };
+
   return (
-    <div className="d-flex flex-column w-100 h-100">
-      <Navigation
-        layout={layout}
-        progressBarVariant={progressBarVariant}
-        drawModeActive={drawModeActive}
-        phaseNumber={phaseNumber}
-        runProgress={runProgress}
-        runSpeed={runSpeed}
-        onLayoutChange={setLayout}
-        onDrawModeChange={handleDrawModeChange}
-        onRunSpeedChange={_setRunSpeed}
-        onConnectNNearestNodes={() => connectNNearestCYNodes(5)}
-        onConnectAllNodes={() => connectNNearestCYNodes(cyNodes.length - 1)}
-        onDeleteUnmarkedEdges={deleteUnmarkedEdges}
-        onLoadPreset={handleLoadPreset}
-        onClear={handleClear}
-        onAddNode={handleAddNode}
-        onRun={handleRun}
-        onStop={handleStop}
-        onSkip={handleSkip}
-      ></Navigation>
-      <div
-        id="cy-container"
-        className="flex-grow-1"
-        tabIndex={-1}
-        onKeyDown={handleKeyDown}
-      >
-        <CytoscapeComponent
-          className="w-100 h-100"
-          cy={setupCytoscape}
-          elements={CytoscapeComponent.normalizeElements({
-            nodes: cyNodes,
-            edges: cyEdges,
-          })}
-          wheelSensitivity={0.2}
+    <>
+      <div className="d-flex flex-column w-100 h-100">
+        <Navigation
           layout={layout}
-          boxSelectionEnabled={false}
-          stylesheet={[
-            {
-              selector: "node",
-              style: {
-                "selection-box-border-color": "#ff0000",
-                "selection-box-border-width": 5,
-                label: "data(label)",
-                width: "100%",
-                height: "100%",
-                "background-color": "black",
-                "background-image": "data(imageUrl)",
-                "background-image-containment": "over",
-                "background-opacity": 0.0,
-                "background-width": "225%",
-                "background-height": "225%",
-                "background-offset-y": "10%",
+          progressBarVariant={progressBarVariant}
+          editMode={editMode}
+          phaseNumber={phaseNumber}
+          runProgress={runProgress}
+          maxConnectNearestNodesN={cyNodes.length - 1}
+          runSpeed={runSpeed}
+          onLayoutChange={setLayout}
+          onEditModeChange={handleEditModeChange}
+          onRunSpeedChange={_setRunSpeed}
+          onConnectNNearestNodes={connectNNearestCYNodes}
+          onConnectAllNodes={() => connectNNearestCYNodes(cyNodes.length - 1)}
+          onDeleteUnmarkedEdges={deleteUnmarkedEdges}
+          onLoadPreset={handleLoadPreset}
+          onClear={handleClear}
+          onAddNode={handleAddNode}
+          onRun={handleRun}
+          onStop={handleStop}
+          onSkip={handleSkip}
+        ></Navigation>
+        <div id="cy-container" className="flex-grow-1">
+          <CytoscapeComponent
+            className="w-100 h-100"
+            cy={setupCytoscape}
+            elements={CytoscapeComponent.normalizeElements({
+              nodes: cyNodes,
+              edges: cyEdges,
+            })}
+            wheelSensitivity={0.2}
+            layout={layout}
+            boxSelectionEnabled={false}
+            stylesheet={[
+              {
+                selector: "node",
+                style: {
+                  "selection-box-border-color": "#ff0000",
+                  "selection-box-border-width": 5,
+                  label: "data(label)",
+                  width: "100%",
+                  height: "100%",
+                  "background-color": "black",
+                  "background-image": "data(imageUrl)",
+                  "background-image-containment": "over",
+                  "background-opacity": 0.0,
+                  "background-width": "225%",
+                  "background-height": "225%",
+                  "background-offset-y": "10%",
+                },
               },
-            },
-            {
-              selector: "node:selected",
-              css: {
-                "border-color": "#ffc107",
-                "border-style": "solid",
-                "border-width": 3,
-                color: "#ffc107",
+              {
+                selector: "node:selected",
+                css: {
+                  "border-color": "#ffc107",
+                  "border-style": "solid",
+                  "border-width": 3,
+                  color: "#ffc107",
+                },
               },
-            },
-            {
-              selector: "edge",
-              style: {
-                width: 6,
-                "curve-style": "straight",
-                "line-style": "solid",
-                "line-color": "data(lineColor)",
+              {
+                selector: "edge",
+                style: {
+                  width: 6,
+                  "curve-style": "straight",
+                  "line-style": "solid",
+                  "line-color": "data(lineColor)",
+                },
               },
-            },
-          ]}
-        />
+            ]}
+          />
+        </div>
       </div>
-    </div>
+      <RenameNodeModal
+        show={showRenameNodeModal}
+        oldName={provideOldNodeNameForRename() ?? ""}
+        onOk={handleRenameNode}
+        onCancel={() => setShowRenameNodeModal(false)}
+      ></RenameNodeModal>
+    </>
   );
 }
 
