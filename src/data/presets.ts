@@ -1,5 +1,5 @@
 import { ElementDefinition } from "cytoscape";
-import padNumber from "../utils/padNumber";
+import padNumber from "../utils/others/padNumber";
 
 export type Preset = "Germany" | "Star" | "Random";
 

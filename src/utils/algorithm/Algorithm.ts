@@ -1,7 +1,7 @@
 import Graph, { NodeId } from "./Graph";
 import { Node } from "./Graph";
-import randomAlternating from "./randomAlternating";
-import { Stats } from "../components/modals/StatsModal";
+import randomAlternating from "../others/randomAlternating";
+import { Stats } from "../../components/modals/StatsModal";
 
 type LabelledNode = Record<
   NodeId,
