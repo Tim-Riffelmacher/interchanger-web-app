@@ -12,7 +12,7 @@ import CytoscapeComponent from "react-cytoscapejs";
 import euclideanDistance from "../utils/euclideanDistance";
 import swapElements from "../utils/swapElements";
 import buildEdgeId from "../utils/buildEdgeId";
-import Navigation, { ClearScope, EditModeAction, RunSpeed } from "./Navigation";
+import Navigation, { ClearScope, RunSpeed } from "./Navigation";
 import Graph from "../utils/Graph";
 import { NodeId } from "../utils/Graph";
 import Algorithm from "../utils/Algorithm";
@@ -22,6 +22,7 @@ import sleep from "../utils/sleep";
 import equalId from "../utils/equalId";
 import RenameNodeModal from "./modals/RenameNodeModal";
 import { EditMode } from "./Navigation";
+import StatsModal, { Stats } from "./modals/StatsModal";
 const avsdf = require("cytoscape-avsdf");
 
 cytoscape.use(avsdf);
@@ -40,6 +41,9 @@ function Sandbox() {
   cyEdgesRef.current = cyEdges;
 
   const [editMode, setEditMode] = useState<EditMode>("Move");
+  const editModeRef = useRef<EditMode>("Move");
+  editModeRef.current = editMode;
+
   const runProgressRef = useRef<number>();
   const [runProgress, setRunProgress] = useState<number>();
   const [progressBarVariant, setProgressBarVariant] = useState<
@@ -54,6 +58,8 @@ function Sandbox() {
   const [cyNodeIdForRename, setCYNodeIdForRename] = useState<NodeId>();
   const [phaseNumber, setPhaseNumber] = useState<number>();
   const [showRenameNodeModal, setShowRenameNodeModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [stats, setStats] = useState<Stats>();
 
   const _setRunProgress = (runProgress?: number) => {
     runProgressRef.current = runProgress;
@@ -132,8 +138,11 @@ function Sandbox() {
       setCYNodes(copiedCYNodes);
     });
     cy.on("select", "node", (event) => {
-      // TODO
-      if (runProgressRef.current !== undefined) return;
+      if (
+        runProgressRef.current !== undefined ||
+        editModeRef.current !== "Delete"
+      )
+        return;
 
       const eventNode = event.target as NodeSingular;
       const copiedCYNodes = deepCopy(cyNodesRef.current);
@@ -153,8 +162,11 @@ function Sandbox() {
       setCYNodes(copiedCYNodes);
     });
     cy.on("select", "edge", (event) => {
-      // TODO
-      if (runProgressRef.current !== undefined) return;
+      if (
+        runProgressRef.current !== undefined ||
+        editModeRef.current !== "Delete"
+      )
+        return;
 
       const eventEdge = event.target as EdgeSingular;
       const copiedCYEdges = deepCopy(cyEdgesRef.current).filter(
@@ -167,6 +179,8 @@ function Sandbox() {
       setCYEdges(copiedCYEdges);
     });
     cy.on("cxttap", "node", async (event) => {
+      if (runProgressRef.current !== undefined) return;
+
       const eventNode = event.target as NodeSingular;
       setCYNodeIdForRename(eventNode.id());
       setShowRenameNodeModal(true);
@@ -189,43 +203,29 @@ function Sandbox() {
         return buildCYEdge(Number(sourceNode.id()), Number(targetNode.id()));
       },
     });
-    if (editMode) {
+    if (editMode === "Draw") {
       cyEdgeHandles.current.enableDrawMode();
     } else {
       cyEdgeHandles.current.disableDrawMode();
     }
   };
 
-  const handleEditModeChange = (editMode: EditMode) => {
-    /*if (!active) {
-      if (!action)
-        throw new Error("Action is required if draw mode changes to inactive.");
-      if (!cyCore.current)
-        throw new Error(
-          "CY Core is required if draw mode changes to inactive."
-        );
+  const handleEditModeChange = (changedEditMode: EditMode) => {
+    if (!cyCore.current)
+      throw new Error("CY Core is required if draw mode changes to inactive.");
 
-      if (action === "Ok") {
-        const cyEdges: ElementDefinition[] = cyCore.current
-          .elements("edge")
-          .map((cyEdge) => ({ group: "edges", data: cyEdge.data() }));
-        setCYEdges(cyEdges);
-      } else {
-        const currentCYEdges = cyCore.current.elements("edge");
-        for (const currentCYEdge of currentCYEdges.toArray()) {
-          if (cyEdges.some((cyEdge) => cyEdge.data.id === currentCYEdge.id()))
-            continue;
+    if (editMode === "Draw") {
+      const cyEdges: ElementDefinition[] = cyCore.current
+        .elements("edge")
+        .map((cyEdge) => ({ group: "edges", data: cyEdge.data() }));
+      setCYEdges(cyEdges);
+    }
 
-          cyCore.current.remove(`#${currentCYEdge.id()}`);
-        }
-      }
-    }*/
-
-    setEditMode(editMode);
-    if (editMode) {
-      cyEdgeHandles.current?.enableDrawMode();
+    setEditMode(changedEditMode);
+    if (changedEditMode === "Draw") {
+      cyEdgeHandles.current!.enableDrawMode();
     } else {
-      cyEdgeHandles.current?.disableDrawMode();
+      cyEdgeHandles.current!.disableDrawMode();
     }
   };
 
@@ -255,7 +255,10 @@ function Sandbox() {
     graph.addEdges(...edges);
 
     const algorithm = new Algorithm();
-    const spanningTreeHistory = algorithm.run(graph);
+    const { spanningTreeHistory, stats } = algorithm.run(graph);
+
+    // Set new stats right away.
+    setStats(stats);
 
     // Calculate overall history length.
     let composedHistoryLength = 0;
@@ -331,6 +334,7 @@ function Sandbox() {
     _setRunProgress(undefined);
     _setRunSpeed(1.0);
     setPhaseNumber(undefined);
+    if (!stopIndicatorRef.current) setShowStatsModal(true);
     stopIndicatorRef.current = false;
   };
 
@@ -454,15 +458,6 @@ function Sandbox() {
                 },
               },
               {
-                selector: "node:selected",
-                css: {
-                  "border-color": "#ffc107",
-                  "border-style": "solid",
-                  "border-width": 3,
-                  color: "#ffc107",
-                },
-              },
-              {
                 selector: "edge",
                 style: {
                   width: 6,
@@ -481,6 +476,17 @@ function Sandbox() {
         onOk={handleRenameNode}
         onCancel={() => setShowRenameNodeModal(false)}
       ></RenameNodeModal>
+      <StatsModal
+        show={showStatsModal}
+        stats={
+          stats ?? {
+            initialMaxNodeDegree: -1,
+            finalMaxNodeDegree: -1,
+            counts: [],
+          }
+        }
+        onShowChange={setShowStatsModal}
+      ></StatsModal>
     </>
   );
 }

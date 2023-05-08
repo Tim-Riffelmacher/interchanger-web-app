@@ -5,7 +5,7 @@ import Sandbox from "./components/Sandbox";
 function App() {
   return (
     <div
-      onContextMenu={(event) => event.preventDefault()}
+      //TODO(trm): Activate onContextMenu={(event) => event.preventDefault()}
       style={{
         width: "100vw",
         height: "100vh",

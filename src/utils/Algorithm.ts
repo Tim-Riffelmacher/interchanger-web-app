@@ -1,6 +1,7 @@
 import Graph, { NodeId } from "./Graph";
 import { Node } from "./Graph";
 import randomAlternating from "./randomAlternating";
+import { Stats } from "../components/modals/StatsModal";
 
 type LabelledNode = Record<
   NodeId,
@@ -19,6 +20,12 @@ export default class Algorithm<T> {
       NodeId,
       { neighbourNodeId: NodeId; edge: [NodeId, NodeId] }
     > = {};
+
+    const stats: Stats = {
+      initialMaxNodeDegree: spanningTree.getMaxNodeDegree(),
+      finalMaxNodeDegree: -1,
+      counts: [],
+    };
 
     const spanningTreeHistory: {
       k: number;
@@ -41,6 +48,14 @@ export default class Algorithm<T> {
 
       let nodesOfDegreeK = spanningTree.getNodesOfDegree(k);
       let nodesOfDegreeKMinus1 = spanningTree.getNodesOfDegree(k - 1);
+
+      const statsRecord: Stats["counts"][0] = {
+        maxNodeDegree: k,
+        localMoves: 0,
+        localMovesOfNodeOfDegreeK: 0,
+        localMovesOfNodeOfDegreeKMinus1: 0,
+      };
+
       while (nodesOfDegreeK.length !== 0) {
         let nodesOfDegreeKAndKMinus1 = [
           ...nodesOfDegreeK,
@@ -132,13 +147,6 @@ export default class Algorithm<T> {
                 labelledNode.neighbourNodeId
               );
 
-              console.log(
-                labelledNode.edge[0],
-                labelledNode.edge[1],
-                nodeIdForPotentialPropagate,
-                labelledNode.neighbourNodeId
-              );
-
               propagatedMoves.push(spanningTree.clone(false));
             }
 
@@ -154,10 +162,17 @@ export default class Algorithm<T> {
             );
             spanningTree.removeEdge(nodeToReduce.nodeId, neighbourNode.nodeId);
 
+            // Update spanning tree history.
             spanningTreeHistoryPhase.phase.push({
               move: spanningTree.clone(false),
               propagatedMoves,
             });
+
+            // Update stats.
+            statsRecord.localMovesOfNodeOfDegreeK++;
+            statsRecord.localMovesOfNodeOfDegreeKMinus1 +=
+              propagatedMoves.length;
+
             break;
           }
         }
@@ -167,9 +182,16 @@ export default class Algorithm<T> {
       }
 
       spanningTreeHistory.push(spanningTreeHistoryPhase);
+
+      statsRecord.localMoves =
+        statsRecord.localMovesOfNodeOfDegreeK +
+        statsRecord.localMovesOfNodeOfDegreeKMinus1;
+      stats.counts.push(statsRecord);
     }
 
-    return spanningTreeHistory;
+    stats.finalMaxNodeDegree = spanningTree.getMaxNodeDegree();
+
+    return { spanningTreeHistory, stats };
   }
 
   /**

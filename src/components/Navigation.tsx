@@ -63,8 +63,6 @@ function Navigation({
     onConnectNNearestNodes(n);
   };
 
-  const handleRenameNode = (name: string) => {};
-
   return (
     <>
       <Navbar collapseOnSelect expand="lg" bg="dark" variant="dark">
@@ -82,13 +80,14 @@ function Navigation({
           <Navbar.Toggle aria-controls="responsive-navbar-nav" />
           <Navbar.Collapse id="responsive-navbar-nav">
             <Nav className="me-auto">
-              {editMode !== "Move" ? (
-                <Button
-                  variant="danger"
-                  onClick={() => onEditModeChange("Move")}
-                >
-                  <i className="bi bi-arrow-counterclockwise me-1"></i>Undo
-                </Button>
+              {editMode === "Draw" ? (
+                <span className="text-primary fs-5 animation-pulse">
+                  You are drawing now <i className="bi-pencil-fill ms-1"></i>
+                </span>
+              ) : editMode === "Delete" ? (
+                <span className="text-primary fs-5 animation-pulse">
+                  You are erasing now <i className="bi-eraser-fill ms-1"></i>
+                </span>
               ) : (
                 <>
                   <Button
@@ -298,7 +297,6 @@ function Navigation({
                     onChange={() => onEditModeChange("Delete")}
                     type="radio"
                   />
-                  <InfoTooltip infoText="Turn on/off draw mode. When draw mode is active you can create connections between interchanges. Do this by holding your mouse down on an interchange and dragging the line to the interchange you want to connect."></InfoTooltip>
                   <Nav.Link onClick={() => setShowTutorialModal(true)}>
                     Tutorial?
                   </Nav.Link>
