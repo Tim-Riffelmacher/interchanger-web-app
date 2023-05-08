@@ -26,33 +26,33 @@ export default function loadPreset(preset: Preset) {
 
 function loadGermanyPreset(cyNodes: ElementDefinition[]) {
   cyNodes.push(
-    buildCYNode(0, { x: 1077, y: -354 }, "Stralsund"),
-    buildCYNode(1, { x: 1048, y: 113 }, "Potsdam"),
-    buildCYNode(2, { x: 1111, y: 32 }, "Berlin"),
-    buildCYNode(3, { x: 515, y: -72 }, "Bremen"),
-    buildCYNode(4, { x: 471, y: 158 }, "Bielefeld"),
-    buildCYNode(5, { x: 938, y: -295 }, "Rostock"),
-    buildCYNode(6, { x: 327, y: 288 }, "Dortmund"),
-    buildCYNode(7, { x: 585, y: 308 }, "Kassel"),
-    buildCYNode(8, { x: 1167, y: 372 }, "Dresden"),
-    buildCYNode(9, { x: 891, y: 159 }, "Madgeburg"),
-    buildCYNode(10, { x: 234, y: 366 }, "Düsseldorf"),
-    buildCYNode(11, { x: 688, y: -350 }, "Kiel"),
-    buildCYNode(12, { x: 652, y: -175 }, "Hamburg"),
-    buildCYNode(13, { x: 631, y: 93 }, "Hannover"),
-    buildCYNode(14, { x: 764, y: -243 }, "Lübeck"),
-    buildCYNode(15, { x: 238, y: 286 }, "Essen"),
-    buildCYNode(16, { x: 968, y: 306 }, "Leipzig"),
-    buildCYNode(17, { x: 565, y: 839 }, "Stuttgart"),
-    buildCYNode(18, { x: 453, y: 808 }, "Karlsruhe"),
-    buildCYNode(19, { x: 461, y: 697 }, "Mannheim"),
-    buildCYNode(20, { x: 499, y: 571 }, "Frankfurt am Main"),
-    buildCYNode(21, { x: 281, y: 432 }, "Köln"),
-    buildCYNode(22, { x: 951, y: 790 }, "Regensburg"),
-    buildCYNode(23, { x: 810, y: 706 }, "Nürnberg"),
-    buildCYNode(24, { x: 607, y: -495 }, "Flensburg"),
-    buildCYNode(25, { x: 884, y: 952 }, "München"),
-    buildCYNode(26, { x: 392, y: 994 }, "Freiburg im Breisgau")
+    buildCyNode(0, { x: 1077, y: -354 }, "Stralsund"),
+    buildCyNode(1, { x: 1048, y: 113 }, "Potsdam"),
+    buildCyNode(2, { x: 1111, y: 32 }, "Berlin"),
+    buildCyNode(3, { x: 515, y: -72 }, "Bremen"),
+    buildCyNode(4, { x: 471, y: 158 }, "Bielefeld"),
+    buildCyNode(5, { x: 938, y: -295 }, "Rostock"),
+    buildCyNode(6, { x: 327, y: 288 }, "Dortmund"),
+    buildCyNode(7, { x: 585, y: 308 }, "Kassel"),
+    buildCyNode(8, { x: 1167, y: 372 }, "Dresden"),
+    buildCyNode(9, { x: 891, y: 159 }, "Madgeburg"),
+    buildCyNode(10, { x: 234, y: 366 }, "Düsseldorf"),
+    buildCyNode(11, { x: 688, y: -350 }, "Kiel"),
+    buildCyNode(12, { x: 652, y: -175 }, "Hamburg"),
+    buildCyNode(13, { x: 631, y: 93 }, "Hannover"),
+    buildCyNode(14, { x: 764, y: -243 }, "Lübeck"),
+    buildCyNode(15, { x: 238, y: 286 }, "Essen"),
+    buildCyNode(16, { x: 968, y: 306 }, "Leipzig"),
+    buildCyNode(17, { x: 565, y: 839 }, "Stuttgart"),
+    buildCyNode(18, { x: 453, y: 808 }, "Karlsruhe"),
+    buildCyNode(19, { x: 461, y: 697 }, "Mannheim"),
+    buildCyNode(20, { x: 499, y: 571 }, "Frankfurt am Main"),
+    buildCyNode(21, { x: 281, y: 432 }, "Köln"),
+    buildCyNode(22, { x: 951, y: 790 }, "Regensburg"),
+    buildCyNode(23, { x: 810, y: 706 }, "Nürnberg"),
+    buildCyNode(24, { x: 607, y: -495 }, "Flensburg"),
+    buildCyNode(25, { x: 884, y: 952 }, "München"),
+    buildCyNode(26, { x: 392, y: 994 }, "Freiburg im Breisgau")
   );
 }
 
@@ -61,16 +61,16 @@ function loadStarPreset(
   cyEdges: ElementDefinition[]
 ) {
   let nodeId = 0;
-  cyNodes.push(buildCYNode(nodeId++, { x: 200, y: 200 }));
+  cyNodes.push(buildCyNode(nodeId++, { x: 200, y: 200 }));
   for (let i = 0; i < 3; i++) {
     for (let j = 0; j < 3; j++) {
       if (i === 1 && j === 1) continue;
-      cyNodes.push(buildCYNode(nodeId++, { x: j * 200, y: i * 200 }));
+      cyNodes.push(buildCyNode(nodeId++, { x: j * 200, y: i * 200 }));
     }
   }
   for (let i = 0; i < 4; i++) {
     cyNodes.push(
-      buildCYNode(nodeId++, {
+      buildCyNode(nodeId++, {
         x: Math.floor(i / 2) * 400,
         y: i % 2 === 0 ? -300 : 700,
       })
@@ -78,7 +78,7 @@ function loadStarPreset(
   }
   for (let i = 0; i < 4; i++) {
     cyNodes.push(
-      buildCYNode(nodeId++, {
+      buildCyNode(nodeId++, {
         x: i % 2 === 0 ? -300 : 700,
         y: Math.floor(i / 2) * 400,
       })
@@ -87,38 +87,38 @@ function loadStarPreset(
 
   // Center.
   for (let i = 0; i < 8; i++) {
-    cyEdges.push(buildCYEdge(0, i + 1));
+    cyEdges.push(buildCyEdge(0, i + 1));
   }
   // Top and bottom borders.
   for (let i = 0; i < 2; i++) {
-    cyEdges.push(buildCYEdge(i + 1, i + 2), buildCYEdge(i + 6, i + 7));
+    cyEdges.push(buildCyEdge(i + 1, i + 2), buildCyEdge(i + 6, i + 7));
   }
   cyEdges.push(
     // Left and right borders.
-    buildCYEdge(1, 4),
-    buildCYEdge(4, 6),
-    buildCYEdge(3, 5),
-    buildCYEdge(5, 8),
+    buildCyEdge(1, 4),
+    buildCyEdge(4, 6),
+    buildCyEdge(3, 5),
+    buildCyEdge(5, 8),
     // Top.
-    buildCYEdge(1, 9),
-    buildCYEdge(2, 9),
-    buildCYEdge(2, 11),
-    buildCYEdge(3, 11),
+    buildCyEdge(1, 9),
+    buildCyEdge(2, 9),
+    buildCyEdge(2, 11),
+    buildCyEdge(3, 11),
     // Right.
-    buildCYEdge(3, 14),
-    buildCYEdge(5, 14),
-    buildCYEdge(5, 16),
-    buildCYEdge(8, 16),
+    buildCyEdge(3, 14),
+    buildCyEdge(5, 14),
+    buildCyEdge(5, 16),
+    buildCyEdge(8, 16),
     // Bottom.
-    buildCYEdge(8, 12),
-    buildCYEdge(7, 12),
-    buildCYEdge(7, 10),
-    buildCYEdge(6, 10),
+    buildCyEdge(8, 12),
+    buildCyEdge(7, 12),
+    buildCyEdge(7, 10),
+    buildCyEdge(6, 10),
     // Left.
-    buildCYEdge(6, 15),
-    buildCYEdge(4, 15),
-    buildCYEdge(4, 13),
-    buildCYEdge(1, 13)
+    buildCyEdge(6, 15),
+    buildCyEdge(4, 15),
+    buildCyEdge(4, 13),
+    buildCyEdge(1, 13)
   );
 }
 
@@ -131,19 +131,19 @@ function loadRandomPreset(
 
   for (let i = 0; i < nodeCount; i++) {
     cyNodes.push(
-      buildCYNode(i, { x: Math.random() * 1000, y: Math.random() * 1000 })
+      buildCyNode(i, { x: Math.random() * 1000, y: Math.random() * 1000 })
     );
   }
 
   for (let i = 0; i < nodeCount; i++) {
     for (let j = 0; j < nodeCount; j++) {
       if (i < j && Math.random() < edgeProbability)
-        cyEdges.push(buildCYEdge(i, j));
+        cyEdges.push(buildCyEdge(i, j));
     }
   }
 }
 
-export function buildCYEdge(source: number, target: number): ElementDefinition {
+export function buildCyEdge(source: number, target: number): ElementDefinition {
   return {
     group: "edges",
     data: {
@@ -156,7 +156,7 @@ export function buildCYEdge(source: number, target: number): ElementDefinition {
   };
 }
 
-export function buildCYNode(
+export function buildCyNode(
   id: number,
   position: { x: number; y: number },
   label = ""

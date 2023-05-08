@@ -16,8 +16,8 @@ import Navigation, { ClearScope, RunSpeed } from "./Navigation";
 import Graph from "../utils/algorithm/Graph";
 import { NodeId } from "../utils/algorithm/Graph";
 import Algorithm from "../utils/algorithm/Algorithm";
-import loadPreset, { buildCYEdge, Preset } from "../data/presets";
-import { buildCYNode } from "../data/presets";
+import loadPreset, { buildCyEdge, Preset } from "../data/presets";
+import { buildCyNode } from "../data/presets";
 import sleep from "../utils/others/sleep";
 import equalId from "../utils/others/equalId";
 import RenameNodeModal from "./modals/RenameNodeModal";
@@ -32,11 +32,11 @@ function Sandbox() {
   const cyCore = useRef<Core | null>(null);
   const cyEdgeHandles = useRef<EdgeHandlesInstance | null>(null);
 
-  const [cyNodes, setCYNodes] = useState<ElementDefinition[]>([]);
+  const [cyNodes, setCyNodes] = useState<ElementDefinition[]>([]);
   const cyNodesRef = useRef<ElementDefinition[]>([]);
   cyNodesRef.current = cyNodes;
 
-  const [cyEdges, setCYEdges] = useState<ElementDefinition[]>([]);
+  const [cyEdges, setCyEdges] = useState<ElementDefinition[]>([]);
   const cyEdgesRef = useRef<ElementDefinition[]>([]);
   cyEdgesRef.current = cyEdges;
 
@@ -61,62 +61,62 @@ function Sandbox() {
   const [layout, setLayout] = useState<cytoscape.LayoutOptions>({
     name: "preset",
   });
-  const [cyNodeIdForRename, setCYNodeIdForRename] = useState<NodeId>();
+  const [cyNodeIdForRename, setCyNodeIdForRename] = useState<NodeId>();
   const [phaseNumber, setPhaseNumber] = useState<number>();
   const [showRenameNodeModal, setShowRenameNodeModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [stats, setStats] = useState<Stats>();
 
-  const connectNNearestCYNodes = (n: number) => {
-    const copiedCYEdges = deepCopy(cyEdges);
+  const connectNNearestCyNodes = (n: number) => {
+    const copiedCyEdges = deepCopy(cyEdges);
     for (const cyNode of cyNodes) {
       const nearestDistances: number[] = new Array(n).fill(
         Number.MAX_SAFE_INTEGER
       );
-      let nearestCYNodeIds: string[] = [];
+      let nearestCyNodeIds: string[] = [];
 
-      for (const otherCYNode of cyNodes) {
+      for (const otherCyNode of cyNodes) {
         if (
-          cyNode.data.id === otherCYNode.data.id ||
+          cyNode.data.id === otherCyNode.data.id ||
           !cyNode.position ||
-          !otherCYNode.position ||
-          !otherCYNode.data.id
+          !otherCyNode.position ||
+          !otherCyNode.data.id
         )
           continue;
 
         const distance = euclideanDistance(
           cyNode.position,
-          otherCYNode.position
+          otherCyNode.position
         );
         if (nearestDistances[n - 1] > distance) {
           nearestDistances[n - 1] = distance;
-          nearestCYNodeIds[n - 1] = otherCYNode.data.id;
+          nearestCyNodeIds[n - 1] = otherCyNode.data.id;
 
           for (let i = nearestDistances.length - 1; i >= 1; i--) {
             if (nearestDistances[i] >= nearestDistances[i - 1]) break;
             swapElements(nearestDistances, i, i - 1);
-            swapElements(nearestCYNodeIds, i, i - 1);
+            swapElements(nearestCyNodeIds, i, i - 1);
           }
         }
       }
 
-      nearestCYNodeIds = nearestCYNodeIds.filter(
-        (nearCYNodeId) =>
-          nearCYNodeId &&
+      nearestCyNodeIds = nearestCyNodeIds.filter(
+        (nearCyNodeId) =>
+          nearCyNodeId &&
           !cyEdges.some(
             (cyEdge) =>
-              cyEdge.data.id === buildEdgeId(cyNode.data.id!, nearCYNodeId) ||
-              cyEdge.data.id === buildEdgeId(nearCYNodeId, cyNode.data.id!)
+              cyEdge.data.id === buildEdgeId(cyNode.data.id!, nearCyNodeId) ||
+              cyEdge.data.id === buildEdgeId(nearCyNodeId, cyNode.data.id!)
           )
       );
 
-      for (const nearCYNodeId of nearestCYNodeIds) {
-        copiedCYEdges.push(
-          buildCYEdge(Number(cyNode.data.id), Number(nearCYNodeId))
+      for (const nearCyNodeId of nearestCyNodeIds) {
+        copiedCyEdges.push(
+          buildCyEdge(Number(cyNode.data.id), Number(nearCyNodeId))
         );
       }
     }
-    setCYEdges(copiedCYEdges);
+    setCyEdges(copiedCyEdges);
   };
 
   const setupCytoscape = (cy: cytoscape.Core) => {
@@ -126,13 +126,13 @@ function Sandbox() {
     cyCore.current = cy;
     cyCore.current.on("dragfreeon", "node", (event) => {
       const eventNode = event.target as NodeSingular;
-      const copiedCYNodes = deepCopy(cyNodesRef.current);
-      const node = copiedCYNodes.find((cyNode) =>
+      const copiedCyNodes = deepCopy(cyNodesRef.current);
+      const node = copiedCyNodes.find((cyNode) =>
         equalId(cyNode.data.id, eventNode.id())
       );
       if (!node) return;
       node["position"] = eventNode.position();
-      setCYNodes(copiedCYNodes);
+      setCyNodes(copiedCyNodes);
     });
     cy.on("select", "node", (event) => {
       if (
@@ -142,21 +142,21 @@ function Sandbox() {
         return;
 
       const eventNode = event.target as NodeSingular;
-      const copiedCYNodes = deepCopy(cyNodesRef.current);
-      const nodeIndex = copiedCYNodes.findIndex((cyNode) =>
+      const copiedCyNodes = deepCopy(cyNodesRef.current);
+      const nodeIndex = copiedCyNodes.findIndex((cyNode) =>
         equalId(cyNode.data.id, eventNode.id())
       );
       if (nodeIndex < 0) return;
-      copiedCYNodes.splice(nodeIndex, 1);
+      copiedCyNodes.splice(nodeIndex, 1);
 
-      const copiedCYEdges = deepCopy(cyEdgesRef.current).filter(
+      const copiedCyEdges = deepCopy(cyEdgesRef.current).filter(
         (cyEdge) =>
           !equalId(eventNode.id(), cyEdge.data.source) &&
           !equalId(eventNode.id(), cyEdge.data.target)
       );
 
-      setCYEdges(copiedCYEdges);
-      setCYNodes(copiedCYNodes);
+      setCyEdges(copiedCyEdges);
+      setCyNodes(copiedCyNodes);
     });
     cy.on("select", "edge", (event) => {
       if (
@@ -166,20 +166,20 @@ function Sandbox() {
         return;
 
       const eventEdge = event.target as EdgeSingular;
-      const copiedCYEdges = deepCopy(cyEdgesRef.current).filter(
+      const copiedCyEdges = deepCopy(cyEdgesRef.current).filter(
         (cyEdge) =>
           (!equalId(cyEdge.data.source, eventEdge.data().source) ||
             !equalId(cyEdge.data.target, eventEdge.data().target)) &&
           (!equalId(cyEdge.data.source, eventEdge.data().target) ||
             !equalId(cyEdge.data.target, eventEdge.data().source))
       );
-      setCYEdges(copiedCYEdges);
+      setCyEdges(copiedCyEdges);
     });
     cy.on("cxttap", "node", async (event) => {
       if (runProgressRef.current !== undefined) return;
 
       const eventNode = event.target as NodeSingular;
-      setCYNodeIdForRename(eventNode.id());
+      setCyNodeIdForRename(eventNode.id());
       setShowRenameNodeModal(true);
     });
 
@@ -197,7 +197,7 @@ function Sandbox() {
               equalId(cyEdge.data().target, targetNode.id())
           ),
       edgeParams: (sourceNode, targetNode) => {
-        return buildCYEdge(Number(sourceNode.id()), Number(targetNode.id()));
+        return buildCyEdge(Number(sourceNode.id()), Number(targetNode.id()));
       },
     });
     if (editMode === "Draw") {
@@ -215,7 +215,7 @@ function Sandbox() {
       const cyEdges: ElementDefinition[] = cyCore.current
         .elements("edge")
         .map((cyEdge) => ({ group: "edges", data: cyEdge.data() }));
-      setCYEdges(cyEdges);
+      setCyEdges(cyEdges);
     }
 
     setEditMode(changedEditMode);
@@ -288,8 +288,8 @@ function Sandbox() {
 
           const singleMove = composedMoves[i];
 
-          const copiedCYEdges = deepCopy(cyEdges);
-          for (const cyEdge of copiedCYEdges) {
+          const copiedCyEdges = deepCopy(cyEdges);
+          for (const cyEdge of copiedCyEdges) {
             if (
               singleMove
                 .getFlatEdges()
@@ -309,7 +309,7 @@ function Sandbox() {
               cyEdge.data.marked = false;
             }
           }
-          setCYEdges(copiedCYEdges);
+          setCyEdges(copiedCyEdges);
 
           if (i < composedMoves.length - 2) setProgressBarVariant("warning");
           else setProgressBarVariant("primary");
@@ -338,11 +338,11 @@ function Sandbox() {
   const handleLoadPreset = async (preset: Preset) => {
     const { cyNodes, cyEdges } = loadPreset(preset);
     setLayout({ name: "preset" });
-    setCYNodes([]);
-    setCYEdges([]);
+    setCyNodes([]);
+    setCyEdges([]);
     await sleep(0);
-    setCYNodes(cyNodes);
-    setCYEdges(cyEdges);
+    setCyNodes(cyNodes);
+    setCyEdges(cyEdges);
     await sleep(0);
     cyCore.current?.fit();
   };
@@ -352,16 +352,16 @@ function Sandbox() {
       ...cyNodes.map((cyNode) => Number(cyNode.data.id))
     );
     if (!Number.isSafeInteger(maxNodeId)) maxNodeId = -1;
-    const copiedCYNodes = deepCopy(cyNodes);
-    copiedCYNodes.push(buildCYNode(maxNodeId + 1, { x: 0, y: 0 }));
-    setCYNodes(copiedCYNodes);
+    const copiedCyNodes = deepCopy(cyNodes);
+    copiedCyNodes.push(buildCyNode(maxNodeId + 1, { x: 0, y: 0 }));
+    setCyNodes(copiedCyNodes);
   };
 
   const handleClear = (clearScope: ClearScope) => {
     if (clearScope === "All") {
-      setCYNodes([]);
+      setCyNodes([]);
     }
-    setCYEdges([]);
+    setCyEdges([]);
   };
 
   const handleStop = () => {
@@ -377,7 +377,7 @@ function Sandbox() {
     const copiedCyEdges = deepCopy(cyEdges).filter(
       (cyEdge) => cyEdge.data.marked
     );
-    setCYEdges(copiedCyEdges);
+    setCyEdges(copiedCyEdges);
   };
 
   const handleRenameNode = (name: string) => {
@@ -390,7 +390,7 @@ function Sandbox() {
         "Node can't be renamed, because there is no node with the provided id."
       );
     cyNode.data.label = name;
-    setCYNodes(copiedCyNodes);
+    setCyNodes(copiedCyNodes);
     setShowRenameNodeModal(false);
   };
 
@@ -415,8 +415,8 @@ function Sandbox() {
           onLayoutChange={setLayout}
           onEditModeChange={handleEditModeChange}
           onRunSpeedChange={setRunSpeed}
-          onConnectNNearestNodes={connectNNearestCYNodes}
-          onConnectAllNodes={() => connectNNearestCYNodes(cyNodes.length - 1)}
+          onConnectNNearestNodes={connectNNearestCyNodes}
+          onConnectAllNodes={() => connectNNearestCyNodes(cyNodes.length - 1)}
           onDeleteUnmarkedEdges={deleteUnmarkedEdges}
           onLoadPreset={handleLoadPreset}
           onClear={handleClear}
