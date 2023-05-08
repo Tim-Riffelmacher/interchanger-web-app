@@ -44,14 +44,20 @@ function Sandbox() {
   const editModeRef = useRef<EditMode>("Move");
   editModeRef.current = editMode;
 
-  const runProgressRef = useRef<number>();
   const [runProgress, setRunProgress] = useState<number>();
+  const runProgressRef = useRef<number>();
+  runProgressRef.current = runProgress;
+
   const [progressBarVariant, setProgressBarVariant] = useState<
     "primary" | "warning"
   >("primary");
+
+  const [runSpeed, setRunSpeed] = useState<RunSpeed>(1.0);
   const runSpeedRef = useRef<RunSpeed>(1.0);
-  const [runSpeed, setRunSpeed] = useState<RunSpeed>(runSpeedRef.current);
+  runSpeedRef.current = runSpeed;
+
   const stopIndicatorRef = useRef(false);
+
   const [layout, setLayout] = useState<cytoscape.LayoutOptions>({
     name: "preset",
   });
@@ -60,15 +66,6 @@ function Sandbox() {
   const [showRenameNodeModal, setShowRenameNodeModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [stats, setStats] = useState<Stats>();
-
-  const _setRunProgress = (runProgress?: number) => {
-    runProgressRef.current = runProgress;
-    setRunProgress(runProgress);
-  };
-  const _setRunSpeed = (runSpeed: RunSpeed) => {
-    runSpeedRef.current = runSpeed;
-    setRunSpeed(runSpeed);
-  };
 
   const connectNNearestCYNodes = (n: number) => {
     const copiedCYEdges = deepCopy(cyEdges);
@@ -230,7 +227,7 @@ function Sandbox() {
   };
 
   const handleRun = async () => {
-    _setRunProgress(0);
+    setRunProgress(0);
 
     const graph = new Graph<{}>();
     const nodes = cyNodes.map((cyNode) => ({
@@ -322,7 +319,7 @@ function Sandbox() {
             (i !== 0 && i !== composedMoves.length - 2)
           )
             composedHistoryIndex++;
-          _setRunProgress(100 * (composedHistoryIndex / composedHistoryLength));
+          setRunProgress(100 * (composedHistoryIndex / composedHistoryLength));
 
           if (runSpeedRef.current !== "Skip")
             await sleep(1500 * (1 / runSpeedRef.current));
@@ -331,8 +328,8 @@ function Sandbox() {
         lastMove = spanningTreeRecord.move;
       }
     }
-    _setRunProgress(undefined);
-    _setRunSpeed(1.0);
+    setRunProgress(undefined);
+    setRunSpeed(1.0);
     setPhaseNumber(undefined);
     if (!stopIndicatorRef.current) setShowStatsModal(true);
     stopIndicatorRef.current = false;
@@ -373,7 +370,7 @@ function Sandbox() {
   };
 
   const handleSkip = () => {
-    _setRunSpeed("Skip");
+    setRunSpeed("Skip");
   };
 
   const deleteUnmarkedEdges = () => {
@@ -417,7 +414,7 @@ function Sandbox() {
           runSpeed={runSpeed}
           onLayoutChange={setLayout}
           onEditModeChange={handleEditModeChange}
-          onRunSpeedChange={_setRunSpeed}
+          onRunSpeedChange={setRunSpeed}
           onConnectNNearestNodes={connectNNearestCYNodes}
           onConnectAllNodes={() => connectNNearestCYNodes(cyNodes.length - 1)}
           onDeleteUnmarkedEdges={deleteUnmarkedEdges}
