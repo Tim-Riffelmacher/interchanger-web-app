@@ -159,7 +159,7 @@ function Navigation({
                         interchange
                       </Button>
                       <NavDropdown
-                        title={`Layout (${layout.name})`}
+                        title="Change layout"
                         id="collasible-nav-dropdown-change-layout"
                       >
                         <NavDropdown.Item
@@ -198,16 +198,6 @@ function Navigation({
                           }
                         >
                           Least overlapping
-                        </NavDropdown.Item>
-                        <NavDropdown.Item
-                          onClick={() =>
-                            onLayoutChange({
-                              name: "preset",
-                              animate: true,
-                            })
-                          }
-                        >
-                          <i className="bi bi-wrench me-1"></i>Custom
                         </NavDropdown.Item>
                       </NavDropdown>
                       <NavDropdown title="Toolbox">

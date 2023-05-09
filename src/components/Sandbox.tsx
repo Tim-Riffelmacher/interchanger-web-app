@@ -6,7 +6,7 @@ import cytoscape, {
 import edgehandles from "cytoscape-edgehandles";
 import { Core } from "cytoscape";
 import { EdgeHandlesInstance } from "cytoscape-edgehandles";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import deepCopy from "../utils/others/deepCopy";
 import CytoscapeComponent from "react-cytoscapejs";
 import euclideanDistance from "../utils/others/euclideanDistance";
@@ -23,49 +23,79 @@ import equalId from "../utils/others/equalId";
 import RenameNodeModal from "./modals/RenameNodeModal";
 import { EditMode } from "./Navigation";
 import StatsModal, { Stats } from "./modals/StatsModal";
+import { retreat } from "../utils/others/sleep";
 const avsdf = require("cytoscape-avsdf");
 
 cytoscape.use(avsdf);
 cytoscape.use(edgehandles);
 
 function Sandbox() {
-  const cyCore = useRef<Core | null>(null);
-  const cyEdgeHandles = useRef<EdgeHandlesInstance | null>(null);
+  // Cytoscape.
+  const cyCoreRef = useRef<Core | null>(null);
+  const cyEdgeHandlesRef = useRef<EdgeHandlesInstance | null>(null);
 
+  // Nodes.
   const [cyNodes, setCyNodes] = useState<ElementDefinition[]>([]);
   const cyNodesRef = useRef<ElementDefinition[]>([]);
   cyNodesRef.current = cyNodes;
 
+  // Edges.
   const [cyEdges, setCyEdges] = useState<ElementDefinition[]>([]);
   const cyEdgesRef = useRef<ElementDefinition[]>([]);
   cyEdgesRef.current = cyEdges;
 
+  // Edit mode.
   const [editMode, setEditMode] = useState<EditMode>("Move");
   const editModeRef = useRef<EditMode>("Move");
   editModeRef.current = editMode;
 
+  // Run progress and more.
   const [runProgress, setRunProgress] = useState<number>();
   const runProgressRef = useRef<number>();
   runProgressRef.current = runProgress;
-
-  const [progressBarVariant, setProgressBarVariant] = useState<
-    "primary" | "warning"
-  >("primary");
-
   const [runSpeed, setRunSpeed] = useState<RunSpeed>(1.0);
   const runSpeedRef = useRef<RunSpeed>(1.0);
   runSpeedRef.current = runSpeed;
-
+  const [progressBarVariant, setProgressBarVariant] = useState<
+    "primary" | "warning"
+  >("primary");
   const stopIndicatorRef = useRef(false);
+  const [phaseNumber, setPhaseNumber] = useState<number>();
 
+  // Layout.
   const [layout, setLayout] = useState<cytoscape.LayoutOptions>({
     name: "preset",
   });
+
+  // Modals and more.
   const [cyNodeIdForRename, setCyNodeIdForRename] = useState<NodeId>();
-  const [phaseNumber, setPhaseNumber] = useState<number>();
   const [showRenameNodeModal, setShowRenameNodeModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [stats, setStats] = useState<Stats>();
+
+  useEffect(() => {
+    if (!cyCoreRef.current)
+      throw new Error(
+        "Node positions cannot be updated after layout change, because cy core reference is undefined."
+      );
+
+    const updatedCyNodes = cyCoreRef.current.nodes();
+    const copiedCyNodes = deepCopy(cyNodes);
+    for (let i = 0; i < cyNodes.length; i++) {
+      const updatedCyNode = updatedCyNodes[i];
+      const cyNode = copiedCyNodes.find((cyNode) =>
+        equalId(cyNode.data.id, updatedCyNode.id())
+      );
+      if (!cyNode)
+        throw new Error(
+          "Node positions cannot be updated after layout change, because at least one node was not matching the updated ones."
+        );
+      cyNode.position = updatedCyNode.position();
+    }
+    setCyNodes(copiedCyNodes);
+
+    if (layout.name !== "preset") setLayout({ name: "preset" });
+  }, [layout]);
 
   const connectNNearestCyNodes = (n: number) => {
     const copiedCyEdges = deepCopy(cyEdges);
@@ -77,7 +107,7 @@ function Sandbox() {
 
       for (const otherCyNode of cyNodes) {
         if (
-          cyNode.data.id === otherCyNode.data.id ||
+          equalId(cyNode.data.id, otherCyNode.data.id) ||
           !cyNode.position ||
           !otherCyNode.position ||
           !otherCyNode.data.id
@@ -102,7 +132,6 @@ function Sandbox() {
 
       nearestCyNodeIds = nearestCyNodeIds.filter(
         (nearCyNodeId) =>
-          nearCyNodeId &&
           !cyEdges.some(
             (cyEdge) =>
               cyEdge.data.id === buildEdgeId(cyNode.data.id!, nearCyNodeId) ||
@@ -120,11 +149,11 @@ function Sandbox() {
   };
 
   const setupCytoscape = (cy: cytoscape.Core) => {
-    if (cyCore.current === cy) return;
+    if (cyCoreRef.current === cy) return;
 
     // Setup cy core.
-    cyCore.current = cy;
-    cyCore.current.on("dragfreeon", "node", (event) => {
+    cyCoreRef.current = cy;
+    cyCoreRef.current.on("dragfreeon", "node", (event) => {
       const eventNode = event.target as NodeSingular;
       const copiedCyNodes = deepCopy(cyNodesRef.current);
       const node = copiedCyNodes.find((cyNode) =>
@@ -184,12 +213,12 @@ function Sandbox() {
     });
 
     // Setup cy edgehandles.
-    cyEdgeHandles.current?.disableDrawMode();
-    cyEdgeHandles.current?.destroy();
-    cyEdgeHandles.current = cy.edgehandles({
+    cyEdgeHandlesRef.current?.disableDrawMode();
+    cyEdgeHandlesRef.current?.destroy();
+    cyEdgeHandlesRef.current = cy.edgehandles({
       canConnect: (sourceNode, targetNode) =>
         !sourceNode.same(targetNode) &&
-        !cyCore
+        !cyCoreRef
           .current!.elements("edge")
           .some(
             (cyEdge) =>
@@ -201,18 +230,18 @@ function Sandbox() {
       },
     });
     if (editMode === "Draw") {
-      cyEdgeHandles.current.enableDrawMode();
+      cyEdgeHandlesRef.current.enableDrawMode();
     } else {
-      cyEdgeHandles.current.disableDrawMode();
+      cyEdgeHandlesRef.current.disableDrawMode();
     }
   };
 
   const handleEditModeChange = (changedEditMode: EditMode) => {
-    if (!cyCore.current)
+    if (!cyCoreRef.current)
       throw new Error("CY Core is required if draw mode changes to inactive.");
 
     if (editMode === "Draw") {
-      const cyEdges: ElementDefinition[] = cyCore.current
+      const cyEdges: ElementDefinition[] = cyCoreRef.current
         .elements("edge")
         .map((cyEdge) => ({ group: "edges", data: cyEdge.data() }));
       setCyEdges(cyEdges);
@@ -220,9 +249,9 @@ function Sandbox() {
 
     setEditMode(changedEditMode);
     if (changedEditMode === "Draw") {
-      cyEdgeHandles.current!.enableDrawMode();
+      cyEdgeHandlesRef.current!.enableDrawMode();
     } else {
-      cyEdgeHandles.current!.disableDrawMode();
+      cyEdgeHandlesRef.current!.disableDrawMode();
     }
   };
 
@@ -337,14 +366,12 @@ function Sandbox() {
 
   const handleLoadPreset = async (preset: Preset) => {
     const { cyNodes, cyEdges } = loadPreset(preset);
-    setLayout({ name: "preset" });
-    setCyNodes([]);
-    setCyEdges([]);
-    await sleep(0);
+    clear("All");
+    await retreat();
     setCyNodes(cyNodes);
     setCyEdges(cyEdges);
-    await sleep(0);
-    cyCore.current?.fit();
+    await retreat();
+    cyCoreRef.current?.fit();
   };
 
   const handleAddNode = () => {
@@ -357,7 +384,7 @@ function Sandbox() {
     setCyNodes(copiedCyNodes);
   };
 
-  const handleClear = (clearScope: ClearScope) => {
+  const clear = (clearScope: ClearScope) => {
     if (clearScope === "All") {
       setCyNodes([]);
     }
@@ -419,7 +446,7 @@ function Sandbox() {
           onConnectAllNodes={() => connectNNearestCyNodes(cyNodes.length - 1)}
           onDeleteUnmarkedEdges={deleteUnmarkedEdges}
           onLoadPreset={handleLoadPreset}
-          onClear={handleClear}
+          onClear={clear}
           onAddNode={handleAddNode}
           onRun={handleRun}
           onStop={handleStop}
