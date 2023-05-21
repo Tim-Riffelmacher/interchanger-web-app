@@ -6,6 +6,7 @@ import {
   Container,
   Form,
   ProgressBar,
+  Spinner,
 } from "react-bootstrap";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
@@ -31,6 +32,7 @@ function NavigationBar({
   maxConnectNearestNodesN,
   progressBarVariant,
   runMode,
+  algorithmIsLoading,
   onEditModeChange,
   onLayoutChange,
   onRunSpeedChange,
@@ -59,6 +61,7 @@ function NavigationBar({
   maxConnectNearestNodesN: number;
   progressBarVariant: "primary" | "warning";
   runMode: RunMode;
+  algorithmIsLoading: boolean;
   onEditModeChange: (editMode: EditMode, action?: EditModeAction) => void;
   onRunSpeedChange: (runSpeed: number) => void;
   onAutoDebugActionChange: (autoDebugAction: DebugAction) => void;
@@ -135,8 +138,20 @@ function NavigationBar({
                       </Button>
                     </ButtonGroup>
                   ) : (
-                    <Button variant="outline-primary me-4" onClick={onRun}>
-                      <i className="bi-play-fill me-1"></i>
+                    <Button
+                      variant="outline-primary me-4"
+                      onClick={onRun}
+                      disabled={algorithmIsLoading}
+                    >
+                      {algorithmIsLoading ? (
+                        <Spinner
+                          className="me-1"
+                          animation="border"
+                          size="sm"
+                        />
+                      ) : (
+                        <i className="bi-play-fill me-1"></i>
+                      )}
                       Run
                     </Button>
                   )}
@@ -175,6 +190,7 @@ function NavigationBar({
                         variant="outline-primary"
                         size="sm"
                         onClick={onAddNode}
+                        disabled={algorithmIsLoading}
                       >
                         <i className="bi bi-signpost-split-fill me-1"></i>Add
                         interchange
@@ -182,6 +198,7 @@ function NavigationBar({
                       <NavDropdown
                         title="Change layout"
                         id="collasible-nav-dropdown-change-layout"
+                        disabled={algorithmIsLoading}
                       >
                         <NavDropdown.Item
                           onClick={() =>
@@ -221,7 +238,10 @@ function NavigationBar({
                           Least overlapping
                         </NavDropdown.Item>
                       </NavDropdown>
-                      <NavDropdown title="Toolbox">
+                      <NavDropdown
+                        title="Toolbox"
+                        disabled={algorithmIsLoading}
+                      >
                         <NavDropdown.Item
                           disabled={maxConnectNearestNodesN < 1}
                           onClick={() => setShowConnectNNearestNodesModal(true)}
@@ -247,6 +267,7 @@ function NavigationBar({
                       <NavDropdown
                         title="Load preset"
                         id="collasible-nav-dropdown-load-preset"
+                        disabled={algorithmIsLoading}
                       >
                         <NavDropdown.Item
                           onClick={() => onLoadPreset("Germany")}
@@ -271,6 +292,7 @@ function NavigationBar({
                       <NavDropdown
                         title="Clear"
                         id="collasible-nav-dropdown-delete"
+                        disabled={algorithmIsLoading}
                       >
                         <NavDropdown.Item
                           onClick={() => onClear("Connections")}
@@ -294,6 +316,7 @@ function NavigationBar({
                       variant="outline-info"
                       onClick={() => onEditModeChange("Move")}
                       active={editMode === "Move"}
+                      disabled={algorithmIsLoading}
                     >
                       Normal
                     </Button>
@@ -301,6 +324,7 @@ function NavigationBar({
                       variant="outline-info"
                       onClick={() => onEditModeChange("Draw")}
                       active={editMode === "Draw"}
+                      disabled={algorithmIsLoading}
                     >
                       Draw
                     </Button>
@@ -308,11 +332,15 @@ function NavigationBar({
                       variant="outline-info"
                       onClick={() => onEditModeChange("Delete")}
                       active={editMode === "Delete"}
+                      disabled={algorithmIsLoading}
                     >
                       Erase
                     </Button>
                   </ButtonGroup>
-                  <Nav.Link onClick={() => setShowTutorialModal(true)}>
+                  <Nav.Link
+                    onClick={() => setShowTutorialModal(true)}
+                    disabled={algorithmIsLoading}
+                  >
                     Tutorial?
                   </Nav.Link>
                 </div>

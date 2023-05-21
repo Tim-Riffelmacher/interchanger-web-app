@@ -29,7 +29,7 @@ function AutoRunBar({
         <Navbar.Toggle aria-controls="responsive-navbar-nav" />
         <Navbar.Collapse id="responsive-navbar-nav">
           <span className="text-secondary me-2">Granularity</span>
-          <ButtonGroup className="me-5" size="sm">
+          <ButtonGroup className="me-5">
             <Button
               variant="outline-info"
               onClick={() => onAutoDebugActionChange("Next")}

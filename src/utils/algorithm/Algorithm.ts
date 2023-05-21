@@ -7,17 +7,17 @@ import equalId from "../others/equalId";
 export type DebugHistory = {
   k: number;
   subphases: {
+    finished: boolean;
     nodeIdsInT: NodeId[];
     edgeIdsInT: EdgeId[];
     nodesOfDegreeKLeft: number; // TODO: Remove!
     nodeIdsOfDegreeK: NodeId[];
     nodeIdsOfDegreeKMinus1: NodeId[];
-    edgeIdsOfF: EdgeId[]; // Stores all edges in F.
+    edgeIdsInF: EdgeId[]; // Stores all edges in F.
     nodeIdsInC: NodeId[][]; // Stores all different components in C.
     edgeIdsInC: EdgeId[][];
     outerComponentEdgeIds: EdgeId[];
     labelledNodeIds: NodeId[];
-    finished: boolean;
     edgeIdForCyle: EdgeId;
     nodeIdsInCycle: NodeId[];
     edgeIdsInCycle: EdgeId[];
@@ -121,6 +121,7 @@ export default class Algorithm<T> {
           const debugHistorySubphase: Partial<
             (typeof debugHistory)[0]["subphases"][0]
           > = {
+            finished: false,
             nodeIdsInT: spanningTree.getFlatNodes().map((node) => node.nodeId),
             edgeIdsInT: spanningTree
               .getFlatEdges()
@@ -130,7 +131,7 @@ export default class Algorithm<T> {
             nodeIdsOfDegreeKMinus1: nodesOfDegreeKMinus1.map(
               (node) => node.nodeId
             ),
-            edgeIdsOfF: F.map((edge) =>
+            edgeIdsInF: F.map((edge) =>
               buildEdgeId(edge[0].nodeId, edge[1].nodeId)
             ) as EdgeId[],
             nodeIdsInC: components.map((component) =>
@@ -281,6 +282,14 @@ export default class Algorithm<T> {
     }
 
     stats.finalMaxNodeDegree = spanningTree.getMaxNodeDegree();
+
+    debugHistory[debugHistory.length - 1].subphases.push({
+      finished: true,
+      nodeIdsInT: spanningTree.getFlatNodes().map((node) => node.nodeId),
+      edgeIdsInT: spanningTree
+        .getFlatEdges()
+        .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId)),
+    } as any);
 
     return { stats, debugHistory };
   }
