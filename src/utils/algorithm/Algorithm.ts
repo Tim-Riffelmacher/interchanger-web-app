@@ -61,19 +61,10 @@ export default class Algorithm<T> {
     while (!finished) {
       const k = spanningTree.getMaxNodeDegree();
 
-      const spanningTreeHistoryPhase: (typeof spanningTreeHistory)[0] = {
-        k,
-        phase: [],
-      };
       const debugHistoryPhase: (typeof debugHistory)[0] = {
         k,
         subphases: [],
       };
-      if (spanningTreeHistory.length === 0)
-        spanningTreeHistoryPhase.phase.push({
-          move: spanningTree.clone(false),
-          propagatedMoves: [],
-        });
 
       let nodesOfDegreeK = spanningTree.getNodesOfDegree(k);
       let nodesOfDegreeKMinus1 = spanningTree.getNodesOfDegree(k - 1);
@@ -268,12 +259,6 @@ export default class Algorithm<T> {
             // End of updating the history.
             ////
 
-            // Update spanning tree history.
-            spanningTreeHistoryPhase.phase.push({
-              move: spanningTree.clone(false),
-              propagatedMoves,
-            });
-
             // Update stats.
             statsRecord.localMovesOfNodeOfDegreeK++;
             statsRecord.localMovesOfNodeOfDegreeKMinus1 +=
@@ -287,7 +272,6 @@ export default class Algorithm<T> {
         nodesOfDegreeKMinus1 = spanningTree.getNodesOfDegree(k - 1);
       }
 
-      spanningTreeHistory.push(spanningTreeHistoryPhase);
       debugHistory.push(debugHistoryPhase);
 
       statsRecord.localMoves =
@@ -298,7 +282,7 @@ export default class Algorithm<T> {
 
     stats.finalMaxNodeDegree = spanningTree.getMaxNodeDegree();
 
-    return { spanningTreeHistory, stats, debugHistory };
+    return { stats, debugHistory };
   }
 
   /**

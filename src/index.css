@@ -13,3 +13,11 @@
     opacity: 0.5;
   }
 }
+
+.hover-icon {
+  cursor: pointer;
+}
+
+.hover-icon:hover {
+  transform: scale(1.05);
+}

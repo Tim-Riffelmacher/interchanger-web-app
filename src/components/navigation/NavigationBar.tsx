@@ -10,22 +10,23 @@ import {
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
 import NavDropdown from "react-bootstrap/NavDropdown";
-import { Preset } from "../data/presets";
-import DebugBar from "./DebugBar";
-import InfoTooltip from "./InfoTooltip";
-import ConnectNNearestNodesModal from "./modals/ConnectNNearestNodesModal";
-import TutorialModal from "./modals/TutorialModal";
+import { Preset } from "../../data/presets";
+import DebugRunBar from "./DebugRunBar";
+import ConnectNNearestNodesModal from "../modals/ConnectNNearestNodesModal";
+import TutorialModal from "../modals/TutorialModal";
+import AutoRunBar from "./AutoRunBar";
+import { DebugAction } from "../Sandbox";
 
 export type EditModeAction = "Ok" | "Cancel";
 export type ClearScope = "Connections" | "All";
-export type RunSpeed = 0.5 | 1.0 | 2.0 | "Skip";
 export type EditMode = "Move" | "Draw" | "Delete";
 export type RunMode = "Auto" | "Debug" | "None";
 
-function Navigation({
+function NavigationBar({
   editMode,
   runProgress,
   runSpeed,
+  autoDebugAction,
   phaseNumber,
   maxConnectNearestNodesN,
   progressBarVariant,
@@ -33,6 +34,7 @@ function Navigation({
   onEditModeChange,
   onLayoutChange,
   onRunSpeedChange,
+  onAutoDebugActionChange,
   onConnectNNearestNodes,
   onConnectAllNodes,
   onDeleteUnmarkedEdges,
@@ -40,7 +42,8 @@ function Navigation({
   onClear,
   onAddNode,
   onRun,
-  onDebug,
+  onAutoRun,
+  onDebugRun,
   onStop,
   onSkip,
   onDebugBack,
@@ -50,13 +53,15 @@ function Navigation({
 }: {
   editMode: EditMode;
   runProgress?: number;
-  runSpeed: RunSpeed;
+  autoDebugAction: DebugAction;
+  runSpeed: number;
   phaseNumber?: number;
   maxConnectNearestNodesN: number;
   progressBarVariant: "primary" | "warning";
   runMode: RunMode;
   onEditModeChange: (editMode: EditMode, action?: EditModeAction) => void;
-  onRunSpeedChange: (runSpeed: RunSpeed) => void;
+  onRunSpeedChange: (runSpeed: number) => void;
+  onAutoDebugActionChange: (autoDebugAction: DebugAction) => void;
   onLayoutChange: (layout: cytoscape.LayoutOptions) => void;
   onConnectNNearestNodes: (n: number) => void;
   onConnectAllNodes: () => void;
@@ -65,7 +70,8 @@ function Navigation({
   onClear: (deleteScope: ClearScope) => void;
   onAddNode: () => void;
   onRun: () => void;
-  onDebug: () => void;
+  onAutoRun: () => void;
+  onDebugRun: () => void;
   onStop: () => void;
   onSkip: () => void;
   onDebugBack: () => void;
@@ -109,32 +115,43 @@ function Navigation({
                 </span>
               ) : (
                 <>
-                  <ButtonGroup className="me-4">
-                    <Button
-                      variant="outline-warning"
-                      onClick={onRun}
-                      active={runMode === "Auto"}
-                    >
-                      <i className="bi-play-fill me-1"></i>
-                      Auto
-                    </Button>
-                    {!runProgress ? (
+                  {runMode !== "None" ? (
+                    <ButtonGroup className="me-4">
                       <Button
-                        variant="outline-success"
-                        onClick={onDebug}
+                        variant="outline-primary"
+                        onClick={onAutoRun}
+                        active={runMode === "Auto"}
+                      >
+                        <i className="bi-play-fill me-1"></i>
+                        Auto
+                      </Button>
+                      <Button
+                        variant="outline-primary"
+                        onClick={onDebugRun}
                         active={runMode === "Debug"}
                       >
                         <i className="bi-bug-fill me-1"></i>
                         Debug
                       </Button>
-                    ) : (
-                      ""
-                    )}
-                  </ButtonGroup>
+                    </ButtonGroup>
+                  ) : (
+                    <Button variant="outline-primary me-4" onClick={onRun}>
+                      <i className="bi-play-fill me-1"></i>
+                      Run
+                    </Button>
+                  )}
                   {runMode !== "None" ? (
                     <div className="d-flex align-items-center">
                       <Button
-                        variant="danger"
+                        variant="outline-warning"
+                        onClick={onSkip}
+                        className="me-4"
+                      >
+                        <i className="bi bi-infinity me-1"></i>
+                        Skip
+                      </Button>
+                      <Button
+                        variant="outline-danger"
                         onClick={onStop}
                         className="me-4"
                       >
@@ -149,35 +166,8 @@ function Navigation({
                         now={runProgress}
                       />
                       <Badge className="me-4" bg="primary">
-                        {phaseNumber}
+                        Max. Degree: {phaseNumber}
                       </Badge>
-                      <Form.Check
-                        inline
-                        checked={runSpeed === 0.5}
-                        disabled={runMode !== "Auto"}
-                        className="text-secondary"
-                        label="x0.5"
-                        onChange={() => onRunSpeedChange(0.5)}
-                        type="radio"
-                      />
-                      <Form.Check
-                        inline
-                        checked={runSpeed === 1.0}
-                        disabled={runMode !== "Auto"}
-                        className="text-secondary"
-                        label="x1.0"
-                        onChange={() => onRunSpeedChange(1.0)}
-                        type="radio"
-                      />
-                      <Form.Check
-                        inline
-                        checked={runSpeed === 2.0}
-                        disabled={runMode !== "Auto"}
-                        className="text-secondary"
-                        label="x2.0"
-                        onChange={() => onRunSpeedChange(2.0)}
-                        type="radio"
-                      />
                     </div>
                   ) : (
                     <div className="d-flex align-items-center">
@@ -299,30 +289,29 @@ function Navigation({
             <Nav>
               {runMode === "None" ? (
                 <div className="d-flex align-items-center">
-                  <Form.Check
-                    inline
-                    checked={editMode === "Move"}
-                    className="text-secondary"
-                    label="Normal"
-                    onChange={() => onEditModeChange("Move")}
-                    type="radio"
-                  />
-                  <Form.Check
-                    inline
-                    checked={editMode === "Draw"}
-                    className="text-secondary"
-                    label="Draw"
-                    onChange={() => onEditModeChange("Draw")}
-                    type="radio"
-                  />
-                  <Form.Check
-                    inline
-                    checked={editMode === "Delete"}
-                    className="text-secondary"
-                    label="Erase"
-                    onChange={() => onEditModeChange("Delete")}
-                    type="radio"
-                  />
+                  <ButtonGroup className="me-4" size="sm">
+                    <Button
+                      variant="outline-info"
+                      onClick={() => onEditModeChange("Move")}
+                      active={editMode === "Move"}
+                    >
+                      Normal
+                    </Button>
+                    <Button
+                      variant="outline-info"
+                      onClick={() => onEditModeChange("Draw")}
+                      active={editMode === "Draw"}
+                    >
+                      Draw
+                    </Button>
+                    <Button
+                      variant="outline-info"
+                      onClick={() => onEditModeChange("Delete")}
+                      active={editMode === "Delete"}
+                    >
+                      Erase
+                    </Button>
+                  </ButtonGroup>
                   <Nav.Link onClick={() => setShowTutorialModal(true)}>
                     Tutorial?
                   </Nav.Link>
@@ -333,12 +322,19 @@ function Navigation({
         </Container>
       </Navbar>
       {runMode === "Debug" ? (
-        <DebugBar
+        <DebugRunBar
           onBack={onDebugBack}
           onNext={onDebugNext}
           onSkipSubphase={onDebugSkipSubphase}
           onSkipPhase={onDebugSkipPhase}
-        ></DebugBar>
+        ></DebugRunBar>
+      ) : runMode === "Auto" ? (
+        <AutoRunBar
+          runSpeed={runSpeed}
+          autoDebugAction={autoDebugAction}
+          onRunSpeedChange={onRunSpeedChange}
+          onAutoDebugActionChange={onAutoDebugActionChange}
+        ></AutoRunBar>
       ) : null}
       <TutorialModal
         show={showTutorialModal}
@@ -354,4 +350,4 @@ function Navigation({
   );
 }
 
-export default Navigation;
+export default NavigationBar;

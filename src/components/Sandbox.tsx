@@ -11,16 +11,18 @@ import deepCopy from "../utils/others/deepCopy";
 import CytoscapeComponent from "react-cytoscapejs";
 import euclideanDistance from "../utils/others/euclideanDistance";
 import swapElements from "../utils/others/swapElements";
-import Navigation, { ClearScope, RunMode, RunSpeed } from "./Navigation";
+import NavigationBar, {
+  ClearScope,
+  RunMode,
+  EditMode,
+} from "./navigation/NavigationBar";
 import Graph, { EdgeId } from "../utils/algorithm/Graph";
 import { NodeId } from "../utils/algorithm/Graph";
 import Algorithm, { DebugHistory } from "../utils/algorithm/Algorithm";
 import loadPreset, { buildCyEdge, buildEdgeId, Preset } from "../data/presets";
 import { buildCyNode } from "../data/presets";
-import sleep from "../utils/others/sleep";
 import equalId from "../utils/others/equalId";
 import RenameNodeModal from "./modals/RenameNodeModal";
-import { EditMode } from "./Navigation";
 import StatsModal, { Stats } from "./modals/StatsModal";
 import { retreat } from "../utils/others/sleep";
 import randomHexColor, { HexColor } from "../utils/others/randomHexColor";
@@ -30,6 +32,8 @@ const avsdf = require("cytoscape-avsdf");
 
 cytoscape.use(avsdf);
 cytoscape.use(edgehandles);
+
+export type DebugAction = "Back" | "Next" | "SkipSubphase" | "SkipPhase";
 
 export enum DebugHistoryStep {
   SHOW_T = 0,
@@ -49,40 +53,59 @@ function Sandbox() {
 
   // Nodes.
   const [cyNodes, setCyNodes] = useState<ElementDefinition[]>([]);
-  const cyNodesRef = useRef<ElementDefinition[]>([]);
+  const cyNodesRef = useRef(cyNodes);
   cyNodesRef.current = cyNodes;
 
   // Edges.
   const [cyEdges, setCyEdges] = useState<ElementDefinition[]>([]);
-  const cyEdgesRef = useRef<ElementDefinition[]>([]);
+  const cyEdgesRef = useRef(cyEdges);
   cyEdgesRef.current = cyEdges;
 
   // Edit mode.
   const [editMode, setEditMode] = useState<EditMode>("Move");
-  const editModeRef = useRef<EditMode>("Move");
+  const editModeRef = useRef(editMode);
   editModeRef.current = editMode;
 
   // Run progress and more.
-  const [runProgress, setRunProgress] = useState<number>();
-  const runProgressRef = useRef<number>();
+  const [runProgress, setRunProgress] = useState<number | null>(null);
+  const runProgressRef = useRef(runProgress);
   runProgressRef.current = runProgress;
+
   const [runMode, setRunMode] = useState<RunMode>("None");
-  const [runSpeed, setRunSpeed] = useState<RunSpeed>(1.0);
-  const runSpeedRef = useRef<RunSpeed>(1.0);
+
+  const [runSpeed, setRunSpeed] = useState<number>(1);
+  const runSpeedRef = useRef(runSpeed);
   runSpeedRef.current = runSpeed;
+
+  const runSpeedChangeIndictorRef = useRef(false);
+
+  const [autoDebugAction, setAutoDebugAction] =
+    useState<DebugAction>("SkipSubphase");
+  const autoDebugActionRef = useRef(autoDebugAction);
+  autoDebugActionRef.current = autoDebugAction;
+
+  const [autoRunInterval, setAutoRunInterval] = useState<any>(null);
+
   const [progressBarVariant, setProgressBarVariant] = useState<
     "primary" | "warning"
   >("primary");
+
   const stopIndicatorRef = useRef(false);
-  const [phaseNumber, setPhaseNumber] = useState<number>();
+
+  const [phaseNumber, setPhaseNumber] = useState<number | null>(null);
 
   // Debug history.
   const [debugHistory, setDebugHistory] = useState<DebugHistory | null>(null);
+  const debugHistoryRef = useRef(debugHistory);
+  debugHistoryRef.current = debugHistory;
+
   const [debugHistoryComplexIndex, setDebugHistoryComplexIndex] = useState<{
     phaseIndex: number;
     subphaseIndex: number;
     step: DebugHistoryStep;
   } | null>(null);
+  const debugHistoryComplexIndexRef = useRef(debugHistoryComplexIndex);
+  debugHistoryComplexIndexRef.current = debugHistoryComplexIndex;
 
   // Layout.
   const [layout, setLayout] = useState<cytoscape.LayoutOptions>({
@@ -90,10 +113,12 @@ function Sandbox() {
   });
 
   // Modals and more.
-  const [cyNodeIdForRename, setCyNodeIdForRename] = useState<NodeId>();
+  const [cyNodeIdForRename, setCyNodeIdForRename] = useState<NodeId | null>(
+    null
+  );
   const [showRenameNodeModal, setShowRenameNodeModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const [stats, setStats] = useState<Stats>();
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
     if (!debugHistory || !debugHistoryComplexIndex) return;
@@ -111,7 +136,6 @@ function Sandbox() {
       }
       progressDenominator += subphasesLength;
     }
-    console.log(progressNumerator / progressDenominator);
     setRunProgress((progressNumerator / progressDenominator) * 100);
 
     const { phaseIndex, subphaseIndex, step } = debugHistoryComplexIndex;
@@ -400,20 +424,24 @@ function Sandbox() {
   };
 
   const autoRun = async () => {
-    if (runMode === "Auto") return;
-
-    if (runMode === "None") initialDebugOrAutoRun();
+    if (runMode !== "Debug") return;
 
     setRunMode("Auto");
 
-    while (!stopIndicatorRef.current) {
-      console.log(stopIndicatorRef.current);
+    // For safety if there already exists an interval.
+    clearInterval(autoRunInterval);
 
-      handleDebugAction("SkipSubphase");
-      if (runSpeedRef.current !== "Skip")
-        await sleep(1500 * runSpeedRef.current);
-      console.log(stopIndicatorRef.current);
-    }
+    const setupInterval = () => {
+      const interval = setInterval(() => {
+        if (runSpeedChangeIndictorRef.current) {
+          clearInterval(interval);
+          runSpeedChangeIndictorRef.current = false;
+          setupInterval();
+        } else handleDebugAction(autoDebugActionRef.current);
+      }, 3000 / runSpeedRef.current);
+      setAutoRunInterval(interval);
+    };
+    setupInterval();
 
     /* // Calculate overall history length.
     let composedHistoryLength = 0;
@@ -479,15 +507,12 @@ function Sandbox() {
     stopIndicatorRef.current = false;*/
   };
 
-  const debugRun = async () => {
-    if (runMode === "Debug") return;
-
-    if (runMode === "None") initialDebugOrAutoRun();
-
+  const debugRun = () => {
+    pauseRun();
     setRunMode("Debug");
   };
 
-  const initialDebugOrAutoRun = () => {
+  const run = () => {
     setRunProgress(0);
 
     // Transform the cytoscape graph into the internally used graph for the algorithm.
@@ -518,15 +543,23 @@ function Sandbox() {
       subphaseIndex: 0,
       step: 0,
     });
+
+    setRunMode("Debug");
+  };
+
+  const pauseRun = () => {
+    clearInterval(autoRunInterval);
+    stopIndicatorRef.current = true;
   };
 
   const stopRun = () => {
-    if (runMode !== "None") return;
-    stopIndicatorRef.current = true;
+    pauseRun();
 
     setRunMode("None");
     setDebugHistory(null);
     setDebugHistoryComplexIndex(null);
+    colorCyNodes([]);
+    colorCyEdges([]);
   };
 
   const loadCertainPreset = async (preset: Preset) => {
@@ -562,7 +595,7 @@ function Sandbox() {
   };
 
   const handleSkip = () => {
-    setRunSpeed("Skip");
+    setRunSpeed(1); // TODO
   };
 
   const deleteUnmarkedEdges = () => {
@@ -571,6 +604,11 @@ function Sandbox() {
   };
 
   const renameNode = (name: string) => {
+    if (!cyNodeIdForRename)
+      throw new Error(
+        "Node can't be renamed, because no node id for rename is stored."
+      );
+
     const copiedCyNodes = deepCopy(cyNodes);
     const cyNode = copiedCyNodes.find((cyNode) =>
       equalId(cyNode.data.id, cyNodeIdForRename)
@@ -653,12 +691,11 @@ function Sandbox() {
     setCyEdges(copiedCyEdges);
   };
 
-  const handleDebugAction = (
-    action: "Back" | "Next" | "SkipSubphase" | "SkipPhase"
-  ) => {
-    if (!debugHistory || !debugHistoryComplexIndex) return;
+  const handleDebugAction = (action: DebugAction) => {
+    if (!debugHistoryRef.current || !debugHistoryComplexIndexRef.current)
+      return;
 
-    const copiedComplexIndex = deepCopy(debugHistoryComplexIndex);
+    const copiedComplexIndex = deepCopy(debugHistoryComplexIndexRef.current);
 
     if (action === "Back") {
       copiedComplexIndex.step--;
@@ -686,11 +723,12 @@ function Sandbox() {
 
     if (copiedComplexIndex.subphaseIndex < 0) {
       copiedComplexIndex.subphaseIndex =
-        debugHistory[copiedComplexIndex.phaseIndex - 1]?.subphases.length - 1;
+        debugHistoryRef.current[copiedComplexIndex.phaseIndex - 1]?.subphases
+          .length - 1;
       copiedComplexIndex.phaseIndex--;
     } else if (
       copiedComplexIndex.subphaseIndex >=
-      debugHistory[copiedComplexIndex.phaseIndex].subphases.length
+      debugHistoryRef.current[copiedComplexIndex.phaseIndex].subphases.length
     ) {
       copiedComplexIndex.subphaseIndex = 0;
       copiedComplexIndex.phaseIndex++;
@@ -698,44 +736,58 @@ function Sandbox() {
 
     if (
       copiedComplexIndex.phaseIndex < 0 ||
-      copiedComplexIndex.phaseIndex >= debugHistory.length
+      copiedComplexIndex.phaseIndex >= debugHistoryRef.current.length
     ) {
-      setRunProgress(undefined);
+      setRunProgress(null);
       return;
     }
+    console.log(
+      copiedComplexIndex.phaseIndex,
+      debugHistoryRef.current.length,
+      debugHistoryRef.current,
+      copiedComplexIndex.phaseIndex >= debugHistoryRef.current.length
+    );
 
     setDebugHistoryComplexIndex(copiedComplexIndex);
+  };
+
+  const handleRunSpeedChange = (newRunSpeed: number) => {
+    runSpeedChangeIndictorRef.current = true;
+    setRunSpeed(newRunSpeed);
   };
 
   return (
     <>
       <div className="d-flex flex-column w-100 h-100">
-        <Navigation
+        <NavigationBar
           progressBarVariant={progressBarVariant}
           editMode={editMode}
-          phaseNumber={phaseNumber}
-          runProgress={runProgress}
+          phaseNumber={phaseNumber ?? -1}
+          runProgress={runProgress ?? -1}
           maxConnectNearestNodesN={cyNodes.length - 1}
           runSpeed={runSpeed}
+          autoDebugAction={autoDebugAction}
           runMode={runMode}
           onLayoutChange={setLayout}
           onEditModeChange={handleEditModeChange}
-          onRunSpeedChange={setRunSpeed}
+          onRunSpeedChange={handleRunSpeedChange}
+          onAutoDebugActionChange={setAutoDebugAction}
           onConnectNNearestNodes={connectNNearestCyNodes}
           onConnectAllNodes={() => connectNNearestCyNodes(cyNodes.length - 1)}
           onDeleteUnmarkedEdges={deleteUnmarkedEdges}
           onLoadPreset={loadCertainPreset}
           onClear={clear}
           onAddNode={addNode}
-          onRun={autoRun}
-          onDebug={debugRun}
+          onRun={run}
+          onDebugRun={debugRun}
+          onAutoRun={autoRun}
           onStop={stopRun}
           onSkip={handleSkip}
           onDebugNext={() => handleDebugAction("Next")}
           onDebugBack={() => handleDebugAction("Back")}
           onDebugSkipSubphase={() => handleDebugAction("SkipSubphase")}
           onDebugSkipPhase={() => handleDebugAction("SkipPhase")}
-        ></Navigation>
+        ></NavigationBar>
         <div id="cy-container" className="flex-grow-1">
           <CytoscapeComponent
             className="w-100 h-100"
