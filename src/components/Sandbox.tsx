@@ -47,7 +47,7 @@ export enum DebugHistoryStep {
   SHOW_C = 4,
   SHOW_OUTER_COMPONENT_EDGES = 5,
   SHOW_CYCLE = 6,
-  SHOW_FURTHER = 7,
+  SHOW_BODY = 7,
 }
 
 export enum Colors {
@@ -255,6 +255,15 @@ function Sandbox() {
       colorCyNodes(
         [
           {
+            nodeIds: debugHistoryRecord.containsMove
+              ? [
+                  (debugHistoryRecord.body as DebugHistoryMoveBody)
+                    .nodeIdToReduce,
+                ]
+              : [],
+            hexColor: Colors.INFO,
+          },
+          {
             nodeIds: debugHistoryRecord.nodeIdsInCycle,
             hexColor: Colors.PRIMARY,
           },
@@ -270,7 +279,7 @@ function Sandbox() {
         ],
         debugHistoryRecord.edgeIdsInT
       );
-    } else if (step === DebugHistoryStep.SHOW_FURTHER) {
+    } else if (step === DebugHistoryStep.SHOW_BODY) {
       if (!debugHistoryRecord.containsMove) {
         const recordBody = debugHistoryRecord.body as DebugHistoryLabelBody;
 
@@ -278,7 +287,7 @@ function Sandbox() {
           colorCyNodes(
             [
               {
-                nodeIds: recordBody.updatedLabelledNodeIds,
+                nodeIds: debugHistoryRecord.nodeIdsOfDegreeKMinus1InCycle,
                 hexColor: Colors.PRIMARY,
               },
             ],
@@ -332,6 +341,10 @@ function Sandbox() {
               {
                 nodeIds: [recordBody.nodeIdToReduce],
                 hexColor: Colors.INFO,
+              },
+              {
+                nodeIds: debugHistoryRecord.nodeIdsInCycle,
+                hexColor: Colors.PRIMARY,
               },
             ],
             debugHistoryRecord.labelledNodeIds
@@ -858,11 +871,11 @@ function Sandbox() {
     const recordBody = debugHistoryRecord.body as any;
 
     if (action === "Back") {
-      if (copiedComplexIndex.step === DebugHistoryStep.SHOW_FURTHER)
+      if (copiedComplexIndex.step === DebugHistoryStep.SHOW_BODY)
         copiedComplexIndex.bodyIndex--;
       else copiedComplexIndex.step--;
     } else if (action === "Next") {
-      if (copiedComplexIndex.step === DebugHistoryStep.SHOW_FURTHER)
+      if (copiedComplexIndex.step === DebugHistoryStep.SHOW_BODY)
         copiedComplexIndex.bodyIndex++;
       else copiedComplexIndex.step++;
     } else if (action === "SkipSubphase") {

@@ -38,6 +38,7 @@ export type DebugHistory = {
     labelledNodeIds: NodeId[];
     edgeIdForCyle: EdgeId;
     nodeIdsInCycle: NodeId[];
+    nodeIdsOfDegreeKMinus1InCycle: NodeId[];
     edgeIdsInCycle: EdgeId[];
     containsMove: boolean;
     body: DebugHistoryLabelBody | DebugHistoryMoveBody;
@@ -199,6 +200,8 @@ export default class Algorithm<T> {
             ////
             // Start of updating the history.
             ////
+            debugHistorySubphase.nodeIdsOfDegreeKMinus1InCycle =
+              cycleNodesOfDegreeKMinus1.map((node) => node.nodeId);
             debugHistorySubphase.containsMove = false;
             debugHistorySubphase.body = {
               updatedLabelledNodeIds: Object.keys(labelledNodes).map((key) =>
