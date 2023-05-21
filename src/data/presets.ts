@@ -1,6 +1,6 @@
 import { ElementDefinition } from "cytoscape";
 import padNumber from "../utils/others/padNumber";
-import { EdgeId } from "../utils/algorithm/Graph";
+import { EdgeId, NodeId } from "../utils/algorithm/Graph";
 
 export type Preset = "Germany" | "Star" | "Square" | "Random";
 

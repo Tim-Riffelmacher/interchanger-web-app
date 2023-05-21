@@ -18,7 +18,10 @@ import NavigationBar, {
 } from "./navigation/NavigationBar";
 import Graph, { EdgeId } from "../utils/algorithm/Graph";
 import { NodeId } from "../utils/algorithm/Graph";
-import Algorithm, { DebugHistory } from "../utils/algorithm/Algorithm";
+import Algorithm, {
+  DebugHistory,
+  DebugHistoryMoveBody,
+} from "../utils/algorithm/Algorithm";
 import loadPreset, { buildCyEdge, buildEdgeId, Preset } from "../data/presets";
 import { buildCyNode } from "../data/presets";
 import equalId from "../utils/others/equalId";
@@ -28,6 +31,7 @@ import sleep, { retreat } from "../utils/others/sleep";
 import randomHexColor, { HexColor } from "../utils/others/randomHexColor";
 import DebugInfo from "./modals/DebugInfo";
 import debugInfoTextTemplates from "../data/debugInfoTextTemplates";
+import { DebugHistoryLabelBody } from "../utils/algorithm/Algorithm";
 const avsdf = require("cytoscape-avsdf");
 
 cytoscape.use(avsdf);
@@ -44,6 +48,12 @@ export enum DebugHistoryStep {
   SHOW_OUTER_COMPONENT_EDGES = 5,
   SHOW_CYCLE = 6,
   SHOW_FURTHER = 7,
+}
+
+export enum Colors {
+  PRIMARY = "#0d6efd",
+  INFO = "#0dcaf0",
+  WARNING = "#ffc107",
 }
 
 function Sandbox() {
@@ -122,7 +132,8 @@ function Sandbox() {
 
   useEffect(() => {
     if (!debugHistory || !debugHistoryComplexIndex) return;
-    const { phaseIndex, subphaseIndex, step } = debugHistoryComplexIndex;
+    const { phaseIndex, subphaseIndex, step, bodyIndex } =
+      debugHistoryComplexIndex;
 
     let progressNumerator = 0;
     let progressDenominator = 0;
@@ -142,11 +153,11 @@ function Sandbox() {
     // Check if this is the last record in debug history.
     if (debugHistoryRecord.finished) {
       colorCyNodes(
-        [{ nodeIds: debugHistoryRecord.nodeIdsInT, hexColor: "#0d6efd" }],
+        [{ nodeIds: debugHistoryRecord.nodeIdsInT, hexColor: Colors.PRIMARY }],
         []
       );
       colorCyEdges(
-        [{ edgeIds: debugHistoryRecord.edgeIdsInT, hexColor: "#0d6efd" }],
+        [{ edgeIds: debugHistoryRecord.edgeIdsInT, hexColor: Colors.PRIMARY }],
         debugHistoryRecord.edgeIdsInT
       );
       endRun();
@@ -155,26 +166,34 @@ function Sandbox() {
 
     if (step === DebugHistoryStep.SHOW_T) {
       colorCyNodes(
-        [{ nodeIds: debugHistoryRecord.nodeIdsInT, hexColor: "#0d6efd" }],
+        [{ nodeIds: debugHistoryRecord.nodeIdsInT, hexColor: Colors.PRIMARY }],
         debugHistoryRecord.labelledNodeIds
       );
       colorCyEdges(
-        [{ edgeIds: debugHistoryRecord.edgeIdsInT, hexColor: "#0d6efd" }],
+        [{ edgeIds: debugHistoryRecord.edgeIdsInT, hexColor: Colors.PRIMARY }],
         debugHistoryRecord.edgeIdsInT
       );
     } else if (step === DebugHistoryStep.SHOW_NODES_OF_DEGREE_K) {
       colorCyNodes(
-        [{ nodeIds: debugHistoryRecord.nodeIdsOfDegreeK, hexColor: "#0d6efd" }],
+        [
+          {
+            nodeIds: debugHistoryRecord.nodeIdsOfDegreeK,
+            hexColor: Colors.PRIMARY,
+          },
+        ],
         debugHistoryRecord.labelledNodeIds
       );
       colorCyEdges([], debugHistoryRecord.edgeIdsInT);
     } else if (step === DebugHistoryStep.SHOW_NODES_OF_DEGREE_K_MINUS_1) {
       colorCyNodes(
         [
-          { nodeIds: debugHistoryRecord.nodeIdsOfDegreeK, hexColor: "#0d6efd" },
+          {
+            nodeIds: debugHistoryRecord.nodeIdsOfDegreeK,
+            hexColor: Colors.PRIMARY,
+          },
           {
             nodeIds: debugHistoryRecord.nodeIdsOfDegreeKMinus1,
-            hexColor: "#0d6efd",
+            hexColor: Colors.PRIMARY,
           },
         ],
         debugHistoryRecord.labelledNodeIds
@@ -185,17 +204,17 @@ function Sandbox() {
         [
           {
             nodeIds: debugHistoryRecord.nodeIdsOfDegreeK,
-            hexColor: "#0d6efd",
+            hexColor: Colors.PRIMARY,
           },
           {
             nodeIds: debugHistoryRecord.nodeIdsOfDegreeKMinus1,
-            hexColor: "#0d6efd",
+            hexColor: Colors.PRIMARY,
           },
         ],
         debugHistoryRecord.labelledNodeIds
       );
       colorCyEdges(
-        [{ edgeIds: debugHistoryRecord.edgeIdsInF, hexColor: "#0d6efd" }],
+        [{ edgeIds: debugHistoryRecord.edgeIdsInF, hexColor: Colors.PRIMARY }],
         debugHistoryRecord.edgeIdsInT
       );
     } else if (step === DebugHistoryStep.SHOW_C) {
@@ -227,33 +246,106 @@ function Sandbox() {
         [
           {
             edgeIds: debugHistoryRecord.outerComponentEdgeIds,
-            hexColor: "#0d6efd",
+            hexColor: Colors.PRIMARY,
           },
         ],
         debugHistoryRecord.edgeIdsInT
       );
     } else if (step === DebugHistoryStep.SHOW_CYCLE) {
       colorCyNodes(
-        [{ nodeIds: debugHistoryRecord.nodeIdsInCycle, hexColor: "#0d6efd" }],
+        [
+          {
+            nodeIds: debugHistoryRecord.nodeIdsInCycle,
+            hexColor: Colors.PRIMARY,
+          },
+        ],
         debugHistoryRecord.labelledNodeIds
       );
       colorCyEdges(
         [
           {
             edgeIds: debugHistoryRecord.edgeIdsInCycle,
-            hexColor: "#0d6efd",
+            hexColor: Colors.PRIMARY,
           },
         ],
         debugHistoryRecord.edgeIdsInT
       );
     } else if (step === DebugHistoryStep.SHOW_FURTHER) {
-      const recordBody = debugHistoryRecord.body as any;
       if (!debugHistoryRecord.containsMove) {
-        colorCyNodes(
-          [{ nodeIds: recordBody.updatedLabelledNodeIds, hexColor: "#0d6efd" }],
-          recordBody.updatedLabelledNodeIds
-        );
+        const recordBody = debugHistoryRecord.body as DebugHistoryLabelBody;
+
+        if (bodyIndex === 0)
+          colorCyNodes(
+            [
+              {
+                nodeIds: recordBody.updatedLabelledNodeIds,
+                hexColor: Colors.PRIMARY,
+              },
+            ],
+            recordBody.updatedLabelledNodeIds
+          );
+        else
+          colorCyNodes(
+            [
+              {
+                nodeIds: recordBody.updatedNodesOfDegreeKMinus1,
+                hexColor: Colors.PRIMARY,
+              },
+            ],
+            recordBody.updatedLabelledNodeIds
+          );
+        colorCyEdges([], debugHistoryRecord.edgeIdsInT);
       } else {
+        const recordBody = debugHistoryRecord.body as DebugHistoryMoveBody;
+
+        if (bodyIndex !== 0) {
+          const propagatedMove = recordBody.propagatedMoves[bodyIndex - 1];
+
+          colorCyNodes(
+            [
+              {
+                nodeIds: [recordBody.nodeIdToReduce],
+                hexColor: Colors.INFO,
+              },
+              {
+                nodeIds: [propagatedMove.labelledNodeId],
+                hexColor: Colors.WARNING,
+              },
+            ],
+            []
+          );
+          colorCyEdges(
+            [
+              {
+                edgeIds: [
+                  propagatedMove.edgeIdToAdd,
+                  propagatedMove.edgeIdToRemove,
+                ],
+                hexColor: Colors.WARNING,
+              },
+            ],
+            propagatedMove.updatedEdgeIdsInT
+          );
+        } else {
+          colorCyNodes(
+            [
+              {
+                nodeIds: [recordBody.nodeIdToReduce],
+                hexColor: Colors.INFO,
+              },
+            ],
+            debugHistoryRecord.labelledNodeIds
+          );
+          colorCyEdges(
+            [
+              {
+                edgeIds: debugHistoryRecord.edgeIdsInCycle,
+                hexColor: Colors.PRIMARY,
+              },
+            ],
+            recordBody.move.updatedEdgeIdsInT
+          );
+        }
       }
     }
   }, [debugHistoryComplexIndex]);
@@ -511,7 +603,7 @@ function Sandbox() {
             .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId));
           colorCyEdges(
             edgeIdsToColor,
-            i < composedMoves.length - 2 ? "#ffc107" : "#0d6efd",
+            i < composedMoves.length - 2 ? "#ffc107" : Colors.PRIMARY,
             true
           );
 
@@ -759,10 +851,20 @@ function Sandbox() {
 
     const copiedComplexIndex = deepCopy(debugHistoryComplexIndexRef.current);
 
+    const debugHistoryRecord =
+      debugHistoryRef.current[copiedComplexIndex.phaseIndex].subphases[
+        copiedComplexIndex.subphaseIndex
+      ];
+    const recordBody = debugHistoryRecord.body as any;
+
     if (action === "Back") {
-      copiedComplexIndex.step--;
+      if (copiedComplexIndex.step === DebugHistoryStep.SHOW_FURTHER)
+        copiedComplexIndex.bodyIndex--;
+      else copiedComplexIndex.step--;
     } else if (action === "Next") {
-      copiedComplexIndex.step++;
+      if (copiedComplexIndex.step === DebugHistoryStep.SHOW_FURTHER)
+        copiedComplexIndex.bodyIndex++;
+      else copiedComplexIndex.step++;
     } else if (action === "SkipSubphase") {
       copiedComplexIndex.step = 0;
       copiedComplexIndex.subphaseIndex++;
@@ -770,6 +872,18 @@ function Sandbox() {
       copiedComplexIndex.step = 0;
       copiedComplexIndex.subphaseIndex = 0;
       copiedComplexIndex.phaseIndex++;
+    }
+
+    if (copiedComplexIndex.bodyIndex < 0) {
+      copiedComplexIndex.bodyIndex = 0;
+      copiedComplexIndex.step--;
+    } else if (
+      (!debugHistoryRecord.containsMove && copiedComplexIndex.bodyIndex >= 2) ||
+      (debugHistoryRecord.containsMove &&
+        copiedComplexIndex.bodyIndex >= recordBody.propagatedMoves.length + 1)
+    ) {
+      copiedComplexIndex.bodyIndex = 0;
+      copiedComplexIndex.step++;
     }
 
     if (copiedComplexIndex.step < 0) {

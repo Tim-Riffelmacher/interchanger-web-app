@@ -4,6 +4,24 @@ import { Stats } from "../../components/modals/StatsModal";
 import { buildEdgeId } from "../../data/presets";
 import equalId from "../others/equalId";
 
+export type DebugHistoryLabelBody = {
+  updatedLabelledNodeIds: NodeId[];
+  updatedNodesOfDegreeKMinus1: NodeId[];
+};
+
+export type DebugHistoryMoveBody = {
+  nodeIdToReduce: NodeId;
+  move: {
+    updatedEdgeIdsInT: EdgeId[];
+  };
+  propagatedMoves: {
+    labelledNodeId: NodeId;
+    edgeIdToAdd: EdgeId;
+    edgeIdToRemove: EdgeId;
+    updatedEdgeIdsInT: EdgeId[];
+  }[];
+};
+
 export type DebugHistory = {
   k: number;
   subphases: {
@@ -22,12 +40,7 @@ export type DebugHistory = {
     nodeIdsInCycle: NodeId[];
     edgeIdsInCycle: EdgeId[];
     containsMove: boolean;
-    body:
-      | {
-          updatedLabelledNodeIds: NodeId[];
-          updatedNodesOfDegreeKMinus1: NodeId[];
-        }
-      | { move: Graph<unknown>; propagatedMoves: Graph<unknown>[] };
+    body: DebugHistoryLabelBody | DebugHistoryMoveBody;
   }[];
 }[];
 
@@ -50,10 +63,6 @@ export default class Algorithm<T> {
       counts: [],
     };
 
-    const spanningTreeHistory: {
-      k: number;
-      phase: { move: Graph<T>; propagatedMoves: Graph<T>[] }[];
-    }[] = [];
     let finished = false;
 
     const debugHistory: DebugHistory = [];
@@ -83,7 +92,7 @@ export default class Algorithm<T> {
         ];
 
         labelledNodes = {};
-        let { outerComponentEdges, interComponentEdges, F, components } =
+        let { outerComponentEdges, F, components } =
           this.getOuterComponentEdges(
             graph,
             spanningTree,
@@ -213,7 +222,10 @@ export default class Algorithm<T> {
             ).outerComponentEdges;
           } else {
             const nodeToReduce = cycleNodesOfDegreeK[0];
-            const propagatedMoves: Graph<T>[] = [];
+
+            const propagatedMoves: DebugHistoryMoveBody["propagatedMoves"] = [];
+
+            const formerSpanningTree = spanningTree.clone(false);
 
             // Propagate local moves if necessary so nodes of degree k-1 are not accidentally of degree k after finishing the current subphase.
             const nodeIdsForPotentialPropagate = [
@@ -227,6 +239,27 @@ export default class Algorithm<T> {
               const labelledNode = labelledNodes[nodeIdForPotentialPropagate];
               if (!labelledNode) continue;
 
+              ////
+              // Start of updating the history.
+              ////
+              propagatedMoves.push({
+                labelledNodeId: nodeIdForPotentialPropagate,
+                edgeIdToAdd: buildEdgeId(
+                  labelledNode.edge[0],
+                  labelledNode.edge[1]
+                ),
+                edgeIdToRemove: buildEdgeId(
+                  nodeIdForPotentialPropagate,
+                  labelledNode.neighbourNodeId
+                ),
+                updatedEdgeIdsInT: spanningTree
+                  .getFlatEdges()
+                  .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId)),
+              });
+              ////
+              // End of updating the history.
+              ////
+
               spanningTree.addEdge(labelledNode.edge[0], labelledNode.edge[1]);
 
               spanningTree.removeEdge(
@@ -234,7 +267,26 @@ export default class Algorithm<T> {
                 labelledNode.neighbourNodeId
               );
 
-              propagatedMoves.push(spanningTree.clone(false));
+              ////
+              // Start of updating the history.
+              ////
+              propagatedMoves.push({
+                labelledNodeId: nodeIdForPotentialPropagate,
+                edgeIdToAdd: buildEdgeId(
+                  labelledNode.edge[0],
+                  labelledNode.edge[1]
+                ),
+                edgeIdToRemove: buildEdgeId(
+                  nodeIdForPotentialPropagate,
+                  labelledNode.neighbourNodeId
+                ),
+                updatedEdgeIdsInT: spanningTree
+                  .getFlatEdges()
+                  .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId)),
+              });
+              ////
+              // End of updating the history.
+              ////
             }
 
             // Now really reduce the degree.
@@ -249,21 +301,38 @@ export default class Algorithm<T> {
             );
             spanningTree.removeEdge(nodeToReduce.nodeId, neighbourNode.nodeId);
 
+            // Update stats.
+            statsRecord.localMovesOfNodeOfDegreeK++;
+            statsRecord.localMovesOfNodeOfDegreeKMinus1 +=
+              propagatedMoves.length / 2;
+
             ////
             // Start of updating the history.
             ////
+            formerSpanningTree.addEdge(
+              outerComponentEdge[0].nodeId,
+              outerComponentEdge[1].nodeId
+            );
+            formerSpanningTree.removeEdge(
+              nodeToReduce.nodeId,
+              neighbourNode.nodeId
+            );
             debugHistorySubphase.containsMove = true;
+            debugHistorySubphase.body = {
+              nodeIdToReduce: nodeToReduce.nodeId,
+              move: {
+                updatedEdgeIdsInT: formerSpanningTree
+                  .getFlatEdges()
+                  .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId)),
+              },
+              propagatedMoves,
+            };
             debugHistoryPhase.subphases.push(
               debugHistorySubphase as (typeof debugHistory)[0]["subphases"][0]
             );
             ////
             // End of updating the history.
             ////
-
-            // Update stats.
-            statsRecord.localMovesOfNodeOfDegreeK++;
-            statsRecord.localMovesOfNodeOfDegreeKMinus1 +=
-              propagatedMoves.length;
 
             break;
           }
@@ -401,6 +470,6 @@ export default class Algorithm<T> {
         )
     );
 
-    return { outerComponentEdges, interComponentEdges, F, components };
+    return { outerComponentEdges, F, components };
   }
 }
