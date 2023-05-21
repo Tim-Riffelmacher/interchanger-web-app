@@ -1,8 +1,5 @@
-function logger(txt: string) {
-  document.getElementById("app")!.innerHTML += txt + "  --  ";
-}
-
-export type NodeId = string | number;
+export type NodeId = number;
+export type EdgeId = `edge__${number}__${number}`;
 
 export class Node<T> {
   public readonly nodeId: NodeId;

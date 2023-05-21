@@ -1,7 +1,8 @@
 import { ElementDefinition } from "cytoscape";
 import padNumber from "../utils/others/padNumber";
+import { EdgeId } from "../utils/algorithm/Graph";
 
-export type Preset = "Germany" | "Star" | "Random";
+export type Preset = "Germany" | "Star" | "Square" | "Random";
 
 export default function loadPreset(preset: Preset) {
   const cyNodes: ElementDefinition[] = [];
@@ -12,6 +13,9 @@ export default function loadPreset(preset: Preset) {
       break;
     case "Star":
       loadStarPreset(cyNodes, cyEdges);
+      break;
+    case "Square":
+      loadSquarePreset(cyNodes, cyEdges);
       break;
     case "Random":
       loadRandomPreset(cyNodes, cyEdges);
@@ -122,12 +126,30 @@ function loadStarPreset(
   );
 }
 
+function loadSquarePreset(
+  cyNodes: ElementDefinition[],
+  cyEdges: ElementDefinition[]
+) {
+  cyNodes.push(
+    buildCyNode(0, { x: 0, y: 0 }),
+    buildCyNode(1, { x: 0, y: 200 }),
+    buildCyNode(2, { x: 200, y: 0 }),
+    buildCyNode(3, { x: 200, y: 200 })
+  );
+
+  for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 4; j++) {
+      if (i < j) cyEdges.push(buildCyEdge(i, j));
+    }
+  }
+}
+
 function loadRandomPreset(
   cyNodes: ElementDefinition[],
   cyEdges: ElementDefinition[]
 ) {
-  const nodeCount = 5 + Math.floor(Math.random() * 5);
-  const edgeProbability = 0.25 + Math.random() * 0.25;
+  const nodeCount = 8 + Math.floor(Math.random() * 8);
+  const edgeProbability = 0.2 + Math.random() * 0.2;
 
   for (let i = 0; i < nodeCount; i++) {
     cyNodes.push(
@@ -143,14 +165,23 @@ function loadRandomPreset(
   }
 }
 
+export function buildEdgeId(source: number, target: number): EdgeId {
+  if (source < target) {
+    return `edge__${source}__${target}`;
+  }
+  return `edge__${target}__${source}`;
+}
+
 export function buildCyEdge(source: number, target: number): ElementDefinition {
   return {
     group: "edges",
     data: {
-      id: `e${source}-${target}`,
-      source: String(source),
-      target: String(target),
+      id: buildEdgeId(source, target),
+      source: String(source < target ? source : target),
+      target: String(source < target ? target : source),
       lineColor: "#ccc",
+      lineWidth: 5,
+      lineStyle: "dashed",
       marked: false,
     },
   };
@@ -173,6 +204,9 @@ export function buildCyNode(
         2
       )}_NW.png`,
       label,
+      bgColor: "white",
+      bgOpacity: 0,
+      borderOpacity: 0,
     },
     position,
   };

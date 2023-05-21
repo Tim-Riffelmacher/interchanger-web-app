@@ -1,12 +1,35 @@
 import Graph, { NodeId } from "./Graph";
-import { Node } from "./Graph";
-import randomAlternating from "../others/randomAlternating";
+import { Node, EdgeId } from "./Graph";
 import { Stats } from "../../components/modals/StatsModal";
+import { buildEdgeId } from "../../data/presets";
+import equalId from "../others/equalId";
 
-type LabelledNode = Record<
-  NodeId,
-  { neighbourNodeId: NodeId; edge: [NodeId, NodeId] }
->;
+export type DebugHistory = {
+  k: number;
+  subphases: {
+    nodeIdsInT: NodeId[];
+    edgeIdsInT: EdgeId[];
+    nodesOfDegreeKLeft: number; // TODO: Remove!
+    nodeIdsOfDegreeK: NodeId[];
+    nodeIdsOfDegreeKMinus1: NodeId[];
+    edgeIdsOfF: EdgeId[]; // Stores all edges in F.
+    nodeIdsInC: NodeId[][]; // Stores all different components in C.
+    edgeIdsInC: EdgeId[][];
+    outerComponentEdgeIds: EdgeId[];
+    labelledNodeIds: NodeId[];
+    finished: boolean;
+    edgeIdForCyle: EdgeId;
+    nodeIdsInCycle: NodeId[];
+    edgeIdsInCycle: EdgeId[];
+    containsMove: boolean;
+    body:
+      | {
+          updatedLabelledNodeIds: NodeId[];
+          updatedNodesOfDegreeKMinus1: NodeId[];
+        }
+      | { move: Graph<unknown>; propagatedMoves: Graph<unknown>[] };
+  }[];
+}[];
 
 export default class Algorithm<T> {
   public run(graph: Graph<T>) {
@@ -33,12 +56,18 @@ export default class Algorithm<T> {
     }[] = [];
     let finished = false;
 
+    const debugHistory: DebugHistory = [];
+
     while (!finished) {
       const k = spanningTree.getMaxNodeDegree();
 
       const spanningTreeHistoryPhase: (typeof spanningTreeHistory)[0] = {
         k,
         phase: [],
+      };
+      const debugHistoryPhase: (typeof debugHistory)[0] = {
+        k,
+        subphases: [],
       };
       if (spanningTreeHistory.length === 0)
         spanningTreeHistoryPhase.phase.push({
@@ -63,11 +92,12 @@ export default class Algorithm<T> {
         ];
 
         labelledNodes = {};
-        let outerComponentEdges = this.getOuterComponentEdges(
-          graph,
-          spanningTree,
-          nodesOfDegreeKAndKMinus1
-        );
+        let { outerComponentEdges, interComponentEdges, F, components } =
+          this.getOuterComponentEdges(
+            graph,
+            spanningTree,
+            nodesOfDegreeKAndKMinus1
+          );
         finished = outerComponentEdges.length === 0;
         if (finished) {
           break;
@@ -94,6 +124,51 @@ export default class Algorithm<T> {
             )
           );
 
+          ////
+          // Start of updating the history.
+          ////
+          const debugHistorySubphase: Partial<
+            (typeof debugHistory)[0]["subphases"][0]
+          > = {
+            nodeIdsInT: spanningTree.getFlatNodes().map((node) => node.nodeId),
+            edgeIdsInT: spanningTree
+              .getFlatEdges()
+              .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId)),
+            nodesOfDegreeKLeft: nodesOfDegreeK.length, // TODO: Remove!
+            nodeIdsOfDegreeK: nodesOfDegreeK.map((node) => node.nodeId),
+            nodeIdsOfDegreeKMinus1: nodesOfDegreeKMinus1.map(
+              (node) => node.nodeId
+            ),
+            edgeIdsOfF: F.map((edge) =>
+              buildEdgeId(edge[0].nodeId, edge[1].nodeId)
+            ) as EdgeId[],
+            nodeIdsInC: components.map((component) =>
+              component.nodes.map((node) => node.nodeId)
+            ),
+            edgeIdsInC: components.map((component) =>
+              component.edges.map((edge) =>
+                buildEdgeId(edge[0].nodeId, edge[1].nodeId)
+              )
+            ),
+            outerComponentEdgeIds: outerComponentEdges.map((edge) =>
+              buildEdgeId(edge[0].nodeId, edge[1].nodeId)
+            ) as EdgeId[],
+            labelledNodeIds: Object.keys(labelledNodes).map((key) =>
+              Number(key)
+            ),
+            edgeIdForCyle: buildEdgeId(
+              outerComponentEdge[0].nodeId,
+              outerComponentEdge[1].nodeId
+            ),
+            nodeIdsInCycle: cycle.map((node) => node.nodeId),
+            edgeIdsInCycle: cycle.map((node, i) =>
+              buildEdgeId(node.nodeId, cycle[(i + 1) % cycle.length].nodeId)
+            ),
+          };
+          ////
+          // End of updating the history.
+          ////
+
           if (cycleNodesOfDegreeK.length === 0) {
             for (const cycleNode of cycleNodesOfDegreeKMinus1) {
               labelledNodes[cycleNode.nodeId] = {
@@ -119,11 +194,31 @@ export default class Algorithm<T> {
                 ...nodesOfDegreeKMinus1,
               ];
             }
+
+            ////
+            // Start of updating the history.
+            ////
+            debugHistorySubphase.containsMove = false;
+            debugHistorySubphase.body = {
+              updatedLabelledNodeIds: Object.keys(labelledNodes).map((key) =>
+                Number(key)
+              ),
+              updatedNodesOfDegreeKMinus1: nodesOfDegreeKMinus1.map(
+                (node) => node.nodeId
+              ),
+            };
+            debugHistoryPhase.subphases.push(
+              debugHistorySubphase as (typeof debugHistory)[0]["subphases"][0]
+            );
+            ////
+            // End of updating the history.
+            ////
+
             outerComponentEdges = this.getOuterComponentEdges(
               graph,
               spanningTree,
               nodesOfDegreeKAndKMinus1
-            );
+            ).outerComponentEdges;
           } else {
             const nodeToReduce = cycleNodesOfDegreeK[0];
             const propagatedMoves: Graph<T>[] = [];
@@ -162,6 +257,17 @@ export default class Algorithm<T> {
             );
             spanningTree.removeEdge(nodeToReduce.nodeId, neighbourNode.nodeId);
 
+            ////
+            // Start of updating the history.
+            ////
+            debugHistorySubphase.containsMove = true;
+            debugHistoryPhase.subphases.push(
+              debugHistorySubphase as (typeof debugHistory)[0]["subphases"][0]
+            );
+            ////
+            // End of updating the history.
+            ////
+
             // Update spanning tree history.
             spanningTreeHistoryPhase.phase.push({
               move: spanningTree.clone(false),
@@ -182,6 +288,7 @@ export default class Algorithm<T> {
       }
 
       spanningTreeHistory.push(spanningTreeHistoryPhase);
+      debugHistory.push(debugHistoryPhase);
 
       statsRecord.localMoves =
         statsRecord.localMovesOfNodeOfDegreeK +
@@ -191,7 +298,7 @@ export default class Algorithm<T> {
 
     stats.finalMaxNodeDegree = spanningTree.getMaxNodeDegree();
 
-    return { spanningTreeHistory, stats };
+    return { spanningTreeHistory, stats, debugHistory };
   }
 
   /**
@@ -225,14 +332,6 @@ export default class Algorithm<T> {
     spanningTree.addEdges(...edgesToAdd);
 
     return spanningTree;
-  }
-
-  public getComponents(C: Graph<T>) {
-    const visitedComponents = C.breadthFirstSearch();
-    const components = visitedComponents.map(
-      (visitedComponent) => visitedComponent.nodes
-    );
-    return components;
   }
 
   public getCycle(spanningTree: Graph<T>, startNodeId: NodeId) {
@@ -280,20 +379,20 @@ export default class Algorithm<T> {
     C.removeEdges(
       ...F.map((edge) => [edge[0].nodeId, edge[1].nodeId] as [NodeId, NodeId])
     );
+    const components = C.breadthFirstSearch();
 
-    const components = this.getComponents(C);
     const interComponentEdges = graph
       .getFlatEdges()
       .filter((edge) =>
-        components.some((component1) =>
-          component1.some((node1) =>
+        components.some(({ nodes: nodes1 }) =>
+          nodes1.some((node1) =>
             components.some(
-              (component2) =>
-                component1 !== component2 &&
-                component2.some(
+              ({ nodes: nodes2 }) =>
+                nodes1 !== nodes2 &&
+                nodes2.some(
                   (node2) =>
-                    edge[0].nodeId === node1.nodeId &&
-                    edge[1].nodeId === node2.nodeId
+                    equalId(edge[0].nodeId, node1.nodeId) &&
+                    equalId(edge[1].nodeId, node2.nodeId)
                 )
             )
           )
@@ -309,6 +408,6 @@ export default class Algorithm<T> {
         )
     );
 
-    return outerComponentEdges;
+    return { outerComponentEdges, interComponentEdges, F, components };
   }
 }

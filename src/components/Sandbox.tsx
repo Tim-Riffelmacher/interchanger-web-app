@@ -11,12 +11,11 @@ import deepCopy from "../utils/others/deepCopy";
 import CytoscapeComponent from "react-cytoscapejs";
 import euclideanDistance from "../utils/others/euclideanDistance";
 import swapElements from "../utils/others/swapElements";
-import buildEdgeId from "../utils/others/buildEdgeId";
-import Navigation, { ClearScope, RunSpeed } from "./Navigation";
-import Graph from "../utils/algorithm/Graph";
+import Navigation, { ClearScope, RunMode, RunSpeed } from "./Navigation";
+import Graph, { EdgeId } from "../utils/algorithm/Graph";
 import { NodeId } from "../utils/algorithm/Graph";
-import Algorithm from "../utils/algorithm/Algorithm";
-import loadPreset, { buildCyEdge, Preset } from "../data/presets";
+import Algorithm, { DebugHistory } from "../utils/algorithm/Algorithm";
+import loadPreset, { buildCyEdge, buildEdgeId, Preset } from "../data/presets";
 import { buildCyNode } from "../data/presets";
 import sleep from "../utils/others/sleep";
 import equalId from "../utils/others/equalId";
@@ -24,10 +23,24 @@ import RenameNodeModal from "./modals/RenameNodeModal";
 import { EditMode } from "./Navigation";
 import StatsModal, { Stats } from "./modals/StatsModal";
 import { retreat } from "../utils/others/sleep";
+import randomHexColor, { HexColor } from "../utils/others/randomHexColor";
+import DebugInfo from "./modals/DebugInfo";
+import debugInfoTextTemplates from "../data/debugInfoTextTemplates";
 const avsdf = require("cytoscape-avsdf");
 
 cytoscape.use(avsdf);
 cytoscape.use(edgehandles);
+
+export enum DebugHistoryStep {
+  SHOW_T = 0,
+  SHOW_NODES_OF_DEGREE_K = 1,
+  SHOW_NODES_OF_DEGREE_K_MINUS_1 = 2,
+  SHOW_F = 3,
+  SHOW_C = 4,
+  SHOW_OUTER_COMPONENT_EDGES = 5,
+  SHOW_CYCLE = 6,
+  SHOW_FURTHER = 7,
+}
 
 function Sandbox() {
   // Cytoscape.
@@ -53,6 +66,7 @@ function Sandbox() {
   const [runProgress, setRunProgress] = useState<number>();
   const runProgressRef = useRef<number>();
   runProgressRef.current = runProgress;
+  const [runMode, setRunMode] = useState<RunMode>("None");
   const [runSpeed, setRunSpeed] = useState<RunSpeed>(1.0);
   const runSpeedRef = useRef<RunSpeed>(1.0);
   runSpeedRef.current = runSpeed;
@@ -61,6 +75,14 @@ function Sandbox() {
   >("primary");
   const stopIndicatorRef = useRef(false);
   const [phaseNumber, setPhaseNumber] = useState<number>();
+
+  // Debug history.
+  const [debugHistory, setDebugHistory] = useState<DebugHistory | null>(null);
+  const [debugHistoryComplexIndex, setDebugHistoryComplexIndex] = useState<{
+    phaseIndex: number;
+    subphaseIndex: number;
+    step: DebugHistoryStep;
+  } | null>(null);
 
   // Layout.
   const [layout, setLayout] = useState<cytoscape.LayoutOptions>({
@@ -72,6 +94,113 @@ function Sandbox() {
   const [showRenameNodeModal, setShowRenameNodeModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [stats, setStats] = useState<Stats>();
+
+  useEffect(() => {
+    if (!debugHistory || !debugHistoryComplexIndex) return;
+
+    let progressNumerator = 0;
+    let progressDenominator = 0;
+    for (let i = 0; i < debugHistory.length; i++) {
+      const subphasesLength = debugHistory[i].subphases.length;
+      for (let j = 0; j < subphasesLength; j++) {
+        if (
+          i <= debugHistoryComplexIndex.phaseIndex &&
+          j <= debugHistoryComplexIndex.subphaseIndex
+        )
+          progressNumerator++;
+      }
+      progressDenominator += subphasesLength;
+    }
+    console.log(progressNumerator / progressDenominator);
+    setRunProgress((progressNumerator / progressDenominator) * 100);
+
+    const { phaseIndex, subphaseIndex, step } = debugHistoryComplexIndex;
+    const debugHistoryRecord =
+      debugHistory[phaseIndex].subphases[subphaseIndex];
+
+    if (step === DebugHistoryStep.SHOW_T) {
+      colorCyNodes([
+        { nodeIds: debugHistoryRecord.nodeIdsInT, hexColor: "#0d6efd" },
+      ]);
+      colorCyEdges(
+        [{ edgeIds: debugHistoryRecord.edgeIdsInT, hexColor: "#0d6efd" }],
+        true
+      );
+    } else if (step === DebugHistoryStep.SHOW_NODES_OF_DEGREE_K) {
+      colorCyNodes([
+        { nodeIds: debugHistoryRecord.nodeIdsOfDegreeK, hexColor: "#0d6efd" },
+      ]);
+      colorCyEdges([]);
+    } else if (step === DebugHistoryStep.SHOW_NODES_OF_DEGREE_K_MINUS_1) {
+      colorCyNodes([
+        { nodeIds: debugHistoryRecord.nodeIdsOfDegreeK, hexColor: "#0d6efd" },
+        {
+          nodeIds: debugHistoryRecord.nodeIdsOfDegreeKMinus1,
+          hexColor: "#0d6efd",
+        },
+      ]);
+      colorCyEdges([]);
+    } else if (step === DebugHistoryStep.SHOW_F) {
+      colorCyNodes([
+        {
+          nodeIds: debugHistoryRecord.nodeIdsOfDegreeK,
+          hexColor: "#0d6efd",
+        },
+        {
+          nodeIds: debugHistoryRecord.nodeIdsOfDegreeKMinus1,
+          hexColor: "#0d6efd",
+        },
+      ]);
+      colorCyEdges([
+        { edgeIds: debugHistoryRecord.edgeIdsOfF, hexColor: "#0d6efd" },
+      ]);
+    } else if (step === DebugHistoryStep.SHOW_C) {
+      const nodeColors: any[] = [];
+      const edgeColors: any[] = [];
+      for (let i = 0; i < debugHistoryRecord.nodeIdsInC.length; i++) {
+        const hexColor = randomHexColor(`seed_${i}`);
+        nodeColors.push({
+          nodeIds: debugHistoryRecord.nodeIdsInC[i],
+          hexColor,
+        });
+        edgeColors.push({
+          edgeIds: debugHistoryRecord.edgeIdsInC[i],
+          hexColor,
+        });
+      }
+      colorCyNodes(nodeColors);
+      colorCyEdges(edgeColors);
+    } else if (step === DebugHistoryStep.SHOW_OUTER_COMPONENT_EDGES) {
+      const nodeColors: any[] = [];
+      for (let i = 0; i < debugHistoryRecord.nodeIdsInC.length; i++) {
+        nodeColors.push({
+          nodeIds: debugHistoryRecord.nodeIdsInC[i],
+          hexColor: randomHexColor(`seed_${i}`),
+        });
+      }
+      colorCyNodes(nodeColors);
+      colorCyEdges([
+        {
+          edgeIds: debugHistoryRecord.outerComponentEdgeIds,
+          hexColor: "#0d6efd",
+        },
+      ]);
+    } else if (step === DebugHistoryStep.SHOW_CYCLE) {
+      colorCyNodes([
+        { nodeIds: debugHistoryRecord.nodeIdsInCycle, hexColor: "#0d6efd" },
+      ]);
+      colorCyEdges([
+        {
+          edgeIds: debugHistoryRecord.edgeIdsInCycle,
+          hexColor: "#0d6efd",
+        },
+      ]);
+    } else if (step === DebugHistoryStep.SHOW_FURTHER) {
+      if (!debugHistoryRecord.containsMove) {
+      } else {
+      }
+    }
+  }, [debugHistoryComplexIndex]);
 
   useEffect(() => {
     if (!cyCoreRef.current)
@@ -132,10 +261,11 @@ function Sandbox() {
 
       nearestCyNodeIds = nearestCyNodeIds.filter(
         (nearCyNodeId) =>
-          !cyEdges.some(
-            (cyEdge) =>
-              cyEdge.data.id === buildEdgeId(cyNode.data.id!, nearCyNodeId) ||
-              cyEdge.data.id === buildEdgeId(nearCyNodeId, cyNode.data.id!)
+          !copiedCyEdges.some((cyEdge) =>
+            equalId(
+              cyEdge.data.id,
+              buildEdgeId(Number(cyNode.data.id!), Number(nearCyNodeId))
+            )
           )
       );
 
@@ -159,8 +289,11 @@ function Sandbox() {
       const node = copiedCyNodes.find((cyNode) =>
         equalId(cyNode.data.id, eventNode.id())
       );
-      if (!node) return;
-      node["position"] = eventNode.position();
+      if (!node)
+        throw new Error(
+          "Node position cannot be updated, because there is no node with the provided id."
+        );
+      node.position = eventNode.position();
       setCyNodes(copiedCyNodes);
     });
     cy.on("select", "node", (event) => {
@@ -175,7 +308,10 @@ function Sandbox() {
       const nodeIndex = copiedCyNodes.findIndex((cyNode) =>
         equalId(cyNode.data.id, eventNode.id())
       );
-      if (nodeIndex < 0) return;
+      if (nodeIndex < 0)
+        throw new Error(
+          "Node cannot be deleted, because there is none with the provided id."
+        );
       copiedCyNodes.splice(nodeIndex, 1);
 
       const copiedCyEdges = deepCopy(cyEdgesRef.current).filter(
@@ -195,20 +331,23 @@ function Sandbox() {
         return;
 
       const eventEdge = event.target as EdgeSingular;
-      const copiedCyEdges = deepCopy(cyEdgesRef.current).filter(
-        (cyEdge) =>
-          (!equalId(cyEdge.data.source, eventEdge.data().source) ||
-            !equalId(cyEdge.data.target, eventEdge.data().target)) &&
-          (!equalId(cyEdge.data.source, eventEdge.data().target) ||
-            !equalId(cyEdge.data.target, eventEdge.data().source))
+      const copiedCyEdges = deepCopy(cyEdgesRef.current);
+      const edgeIndex = copiedCyEdges.findIndex((cyEdge) =>
+        equalId(cyEdge.data.id, eventEdge.id())
       );
+      if (edgeIndex < 0)
+        throw new Error(
+          "Edge cannot be deleted, because there is none with the provided id."
+        );
+      copiedCyEdges.splice(edgeIndex, 1);
+
       setCyEdges(copiedCyEdges);
     });
     cy.on("cxttap", "node", async (event) => {
       if (runProgressRef.current !== undefined) return;
 
       const eventNode = event.target as NodeSingular;
-      setCyNodeIdForRename(eventNode.id());
+      setCyNodeIdForRename(Number(eventNode.id()));
       setShowRenameNodeModal(true);
     });
 
@@ -219,15 +358,15 @@ function Sandbox() {
       canConnect: (sourceNode, targetNode) =>
         !sourceNode.same(targetNode) &&
         !cyCoreRef
-          .current!.elements("edge")
-          .some(
-            (cyEdge) =>
-              equalId(cyEdge.data().source, sourceNode.id()) &&
-              equalId(cyEdge.data().target, targetNode.id())
+          .current!.edges()
+          .some((cyEdge) =>
+            equalId(
+              cyEdge.data().id,
+              buildEdgeId(Number(sourceNode.id()), Number(targetNode.id()))
+            )
           ),
-      edgeParams: (sourceNode, targetNode) => {
-        return buildCyEdge(Number(sourceNode.id()), Number(targetNode.id()));
-      },
+      edgeParams: (sourceNode, targetNode) =>
+        buildCyEdge(Number(sourceNode.id()), Number(targetNode.id())),
     });
     if (editMode === "Draw") {
       cyEdgeHandlesRef.current.enableDrawMode();
@@ -238,55 +377,45 @@ function Sandbox() {
 
   const handleEditModeChange = (changedEditMode: EditMode) => {
     if (!cyCoreRef.current)
-      throw new Error("CY Core is required if draw mode changes to inactive.");
+      throw new Error("Cy Core is required if draw mode changes to inactive.");
 
     if (editMode === "Draw") {
       const cyEdges: ElementDefinition[] = cyCoreRef.current
-        .elements("edge")
+        .edges()
         .map((cyEdge) => ({ group: "edges", data: cyEdge.data() }));
       setCyEdges(cyEdges);
     }
 
     setEditMode(changedEditMode);
+
+    if (!cyEdgeHandlesRef.current)
+      throw new Error(
+        "Cy edge handles are required to either enable or disable draw mode when changing the edit mode."
+      );
     if (changedEditMode === "Draw") {
-      cyEdgeHandlesRef.current!.enableDrawMode();
+      cyEdgeHandlesRef.current.enableDrawMode();
     } else {
-      cyEdgeHandlesRef.current!.disableDrawMode();
+      cyEdgeHandlesRef.current.disableDrawMode();
     }
   };
 
-  const handleRun = async () => {
-    setRunProgress(0);
+  const autoRun = async () => {
+    if (runMode === "Auto") return;
 
-    const graph = new Graph<{}>();
-    const nodes = cyNodes.map((cyNode) => ({
-      nodeId: cyNode.data.id as string,
-      data: {},
-    }));
-    graph.addNodes(...nodes);
-    const edges: [NodeId, NodeId][] = [];
-    for (const cyEdge of cyEdges) {
-      if (
-        edges.some(
-          (edge) =>
-            (cyEdge.data.source === edge[0] &&
-              cyEdge.data.target === edge[1]) ||
-            (cyEdge.data.target === edge[0] && cyEdge.data.source === edge[1])
-        )
-      )
-        continue;
+    if (runMode === "None") initialDebugOrAutoRun();
 
-      edges.push([cyEdge.data.source, cyEdge.data.target]);
+    setRunMode("Auto");
+
+    while (!stopIndicatorRef.current) {
+      console.log(stopIndicatorRef.current);
+
+      handleDebugAction("SkipSubphase");
+      if (runSpeedRef.current !== "Skip")
+        await sleep(1500 * runSpeedRef.current);
+      console.log(stopIndicatorRef.current);
     }
-    graph.addEdges(...edges);
 
-    const algorithm = new Algorithm();
-    const { spanningTreeHistory, stats } = algorithm.run(graph);
-
-    // Set new stats right away.
-    setStats(stats);
-
-    // Calculate overall history length.
+    /* // Calculate overall history length.
     let composedHistoryLength = 0;
     for (const spanningTreePhase of spanningTreeHistory) {
       composedHistoryLength += spanningTreePhase.phase.length;
@@ -317,28 +446,14 @@ function Sandbox() {
 
           const singleMove = composedMoves[i];
 
-          const copiedCyEdges = deepCopy(cyEdges);
-          for (const cyEdge of copiedCyEdges) {
-            if (
-              singleMove
-                .getFlatEdges()
-                .some(
-                  (edge) =>
-                    (cyEdge.data.source === edge[0].nodeId &&
-                      cyEdge.data.target === edge[1].nodeId) ||
-                    (cyEdge.data.target === edge[0].nodeId &&
-                      cyEdge.data.source === edge[1].nodeId)
-                )
-            ) {
-              cyEdge.data.lineColor =
-                i < composedMoves.length - 2 ? "#ffc107" : "#0d6efd";
-              cyEdge.data.marked = true;
-            } else {
-              cyEdge.data.lineColor = "#ccc";
-              cyEdge.data.marked = false;
-            }
-          }
-          setCyEdges(copiedCyEdges);
+          const edgeIdsToColor = singleMove
+            .getFlatEdges()
+            .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId));
+          colorCyEdges(
+            edgeIdsToColor,
+            i < composedMoves.length - 2 ? "#ffc107" : "#0d6efd",
+            true
+          );
 
           if (i < composedMoves.length - 2) setProgressBarVariant("warning");
           else setProgressBarVariant("primary");
@@ -361,20 +476,68 @@ function Sandbox() {
     setRunSpeed(1.0);
     setPhaseNumber(undefined);
     if (!stopIndicatorRef.current) setShowStatsModal(true);
-    stopIndicatorRef.current = false;
+    stopIndicatorRef.current = false;*/
   };
 
-  const handleLoadPreset = async (preset: Preset) => {
+  const debugRun = async () => {
+    if (runMode === "Debug") return;
+
+    if (runMode === "None") initialDebugOrAutoRun();
+
+    setRunMode("Debug");
+  };
+
+  const initialDebugOrAutoRun = () => {
+    setRunProgress(0);
+
+    // Transform the cytoscape graph into the internally used graph for the algorithm.
+    const graph = new Graph<{}>();
+    const nodes = cyNodes.map((cyNode) => ({
+      nodeId: Number(cyNode.data.id),
+      data: {},
+    }));
+    graph.addNodes(...nodes);
+    const edges: [NodeId, NodeId][] = [];
+    for (const cyEdge of cyEdges) {
+      edges.push([cyEdge.data.source, cyEdge.data.target]);
+    }
+    graph.addEdges(...edges);
+
+    const algorithm = new Algorithm();
+    const { stats, debugHistory } = algorithm.run(graph);
+
+    // Set debug history right away.
+    setDebugHistory(debugHistory);
+
+    // Set new stats right away.
+    setStats(stats);
+
+    // Set index for the debug history.
+    setDebugHistoryComplexIndex({
+      phaseIndex: 0,
+      subphaseIndex: 0,
+      step: 0,
+    });
+  };
+
+  const stopRun = () => {
+    if (runMode !== "None") return;
+    stopIndicatorRef.current = true;
+
+    setRunMode("None");
+    setDebugHistory(null);
+    setDebugHistoryComplexIndex(null);
+  };
+
+  const loadCertainPreset = async (preset: Preset) => {
     const { cyNodes, cyEdges } = loadPreset(preset);
-    clear("All");
-    await retreat();
     setCyNodes(cyNodes);
     setCyEdges(cyEdges);
-    await retreat();
-    cyCoreRef.current?.fit();
+
+    await fitScreenIfPossible();
   };
 
-  const handleAddNode = () => {
+  const addNode = async () => {
     let maxNodeId = Math.max(
       ...cyNodes.map((cyNode) => Number(cyNode.data.id))
     );
@@ -382,6 +545,13 @@ function Sandbox() {
     const copiedCyNodes = deepCopy(cyNodes);
     copiedCyNodes.push(buildCyNode(maxNodeId + 1, { x: 0, y: 0 }));
     setCyNodes(copiedCyNodes);
+
+    await fitScreenIfPossible();
+  };
+
+  const fitScreenIfPossible = async () => {
+    await retreat();
+    cyCoreRef.current?.fit();
   };
 
   const clear = (clearScope: ClearScope) => {
@@ -391,23 +561,16 @@ function Sandbox() {
     setCyEdges([]);
   };
 
-  const handleStop = () => {
-    if (!runProgress || runProgress === 100) return;
-    stopIndicatorRef.current = true;
-  };
-
   const handleSkip = () => {
     setRunSpeed("Skip");
   };
 
   const deleteUnmarkedEdges = () => {
-    const copiedCyEdges = deepCopy(cyEdges).filter(
-      (cyEdge) => cyEdge.data.marked
-    );
+    const copiedCyEdges = deepCopy(cyEdges).filter(({ data }) => data.marked);
     setCyEdges(copiedCyEdges);
   };
 
-  const handleRenameNode = (name: string) => {
+  const renameNode = (name: string) => {
     const copiedCyNodes = deepCopy(cyNodes);
     const cyNode = copiedCyNodes.find((cyNode) =>
       equalId(cyNode.data.id, cyNodeIdForRename)
@@ -428,29 +591,150 @@ function Sandbox() {
     return cyNode?.data.label;
   };
 
+  const colorCyNodes = (
+    colors: { nodeIds: NodeId[]; hexColor: HexColor }[]
+  ) => {
+    const copiedCyNodes = deepCopy(cyNodesRef.current);
+    for (const cyNode of copiedCyNodes) {
+      let nodeColored = false;
+
+      for (const color of colors) {
+        if (
+          color.nodeIds.some((nodeId) => {
+            return equalId(nodeId, Number(cyNode.data.id));
+          })
+        ) {
+          // TODO(trm): Remove Number(...)!
+          cyNode.data.bgColor = color.hexColor;
+          cyNode.data.bgOpacity = 1;
+          nodeColored = true;
+          break;
+        }
+      }
+
+      if (nodeColored) continue;
+
+      cyNode.data.bgColor = "white";
+      cyNode.data.bgOpacity = 0;
+    }
+    setCyNodes(copiedCyNodes);
+  };
+
+  const colorCyEdges = (
+    colors: { edgeIds: EdgeId[]; hexColor: HexColor }[],
+    mark = false
+  ) => {
+    const copiedCyEdges = deepCopy(cyEdgesRef.current);
+    for (const cyEdge of copiedCyEdges) {
+      let edgeColored = false;
+
+      for (const color of colors) {
+        if (color.edgeIds.some((edgeId) => equalId(edgeId, cyEdge.data.id))) {
+          cyEdge.data.lineColor = color.hexColor;
+          if (mark) {
+            cyEdge.data.lineWidth = 10;
+            cyEdge.data.marked = true;
+            cyEdge.data.lineStyle = "solid";
+          }
+          edgeColored = true;
+          break;
+        }
+      }
+
+      if (edgeColored) continue;
+
+      cyEdge.data.lineColor = "#ccc";
+      if (mark) {
+        cyEdge.data.lineWidth = 5;
+        cyEdge.data.marked = false;
+        cyEdge.data.lineStyle = "dashed";
+      }
+    }
+    setCyEdges(copiedCyEdges);
+  };
+
+  const handleDebugAction = (
+    action: "Back" | "Next" | "SkipSubphase" | "SkipPhase"
+  ) => {
+    if (!debugHistory || !debugHistoryComplexIndex) return;
+
+    const copiedComplexIndex = deepCopy(debugHistoryComplexIndex);
+
+    if (action === "Back") {
+      copiedComplexIndex.step--;
+    } else if (action === "Next") {
+      copiedComplexIndex.step++;
+    } else if (action === "SkipSubphase") {
+      copiedComplexIndex.step = 0;
+      copiedComplexIndex.subphaseIndex++;
+    } else if (action === "SkipPhase") {
+      copiedComplexIndex.step = 0;
+      copiedComplexIndex.subphaseIndex = 0;
+      copiedComplexIndex.phaseIndex++;
+    }
+
+    if (copiedComplexIndex.step < 0) {
+      copiedComplexIndex.step = Object.keys(DebugHistoryStep).length / 2 - 1;
+      copiedComplexIndex.subphaseIndex--;
+    } else if (
+      copiedComplexIndex.step >=
+      Object.keys(DebugHistoryStep).length / 2
+    ) {
+      copiedComplexIndex.step = 0;
+      copiedComplexIndex.subphaseIndex++;
+    }
+
+    if (copiedComplexIndex.subphaseIndex < 0) {
+      copiedComplexIndex.subphaseIndex =
+        debugHistory[copiedComplexIndex.phaseIndex - 1]?.subphases.length - 1;
+      copiedComplexIndex.phaseIndex--;
+    } else if (
+      copiedComplexIndex.subphaseIndex >=
+      debugHistory[copiedComplexIndex.phaseIndex].subphases.length
+    ) {
+      copiedComplexIndex.subphaseIndex = 0;
+      copiedComplexIndex.phaseIndex++;
+    }
+
+    if (
+      copiedComplexIndex.phaseIndex < 0 ||
+      copiedComplexIndex.phaseIndex >= debugHistory.length
+    ) {
+      setRunProgress(undefined);
+      return;
+    }
+
+    setDebugHistoryComplexIndex(copiedComplexIndex);
+  };
+
   return (
     <>
       <div className="d-flex flex-column w-100 h-100">
         <Navigation
-          layout={layout}
           progressBarVariant={progressBarVariant}
           editMode={editMode}
           phaseNumber={phaseNumber}
           runProgress={runProgress}
           maxConnectNearestNodesN={cyNodes.length - 1}
           runSpeed={runSpeed}
+          runMode={runMode}
           onLayoutChange={setLayout}
           onEditModeChange={handleEditModeChange}
           onRunSpeedChange={setRunSpeed}
           onConnectNNearestNodes={connectNNearestCyNodes}
           onConnectAllNodes={() => connectNNearestCyNodes(cyNodes.length - 1)}
           onDeleteUnmarkedEdges={deleteUnmarkedEdges}
-          onLoadPreset={handleLoadPreset}
+          onLoadPreset={loadCertainPreset}
           onClear={clear}
-          onAddNode={handleAddNode}
-          onRun={handleRun}
-          onStop={handleStop}
+          onAddNode={addNode}
+          onRun={autoRun}
+          onDebug={debugRun}
+          onStop={stopRun}
           onSkip={handleSkip}
+          onDebugNext={() => handleDebugAction("Next")}
+          onDebugBack={() => handleDebugAction("Back")}
+          onDebugSkipSubphase={() => handleDebugAction("SkipSubphase")}
+          onDebugSkipPhase={() => handleDebugAction("SkipPhase")}
         ></Navigation>
         <div id="cy-container" className="flex-grow-1">
           <CytoscapeComponent
@@ -472,10 +756,13 @@ function Sandbox() {
                   label: "data(label)",
                   width: "100%",
                   height: "100%",
-                  "background-color": "black",
+                  "border-color": "black",
+                  "border-opacity": "data(borderOpacity)" as any,
+                  "border-width": "3%",
+                  "background-color": "data(bgColor)",
                   "background-image": "data(imageUrl)",
                   "background-image-containment": "over",
-                  "background-opacity": 0.0,
+                  "background-opacity": "data(bgOpacity)" as any,
                   "background-width": "225%",
                   "background-height": "225%",
                   "background-offset-y": "10%",
@@ -484,10 +771,11 @@ function Sandbox() {
               {
                 selector: "edge",
                 style: {
-                  width: 6,
+                  width: "data(lineWidth)",
                   "curve-style": "straight",
-                  "line-style": "solid",
+                  "line-style": "data(lineStyle)" as any,
                   "line-color": "data(lineColor)",
+                  "line-cap": "butt",
                 },
               },
             ]}
@@ -497,7 +785,7 @@ function Sandbox() {
       <RenameNodeModal
         show={showRenameNodeModal}
         oldName={provideOldNodeNameForRename() ?? ""}
-        onOk={handleRenameNode}
+        onOk={renameNode}
         onCancel={() => setShowRenameNodeModal(false)}
       ></RenameNodeModal>
       <StatsModal
@@ -511,6 +799,11 @@ function Sandbox() {
         }
         onShowChange={setShowStatsModal}
       ></StatsModal>
+      {debugHistoryComplexIndex ? (
+        <DebugInfo
+          {...debugInfoTextTemplates(debugHistoryComplexIndex.step)}
+        ></DebugInfo>
+      ) : null}
     </>
   );
 }

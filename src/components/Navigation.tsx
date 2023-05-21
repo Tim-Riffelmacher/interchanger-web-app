@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { Badge, Button, Container, Form, ProgressBar } from "react-bootstrap";
+import {
+  Badge,
+  Button,
+  ButtonGroup,
+  Container,
+  Form,
+  ProgressBar,
+} from "react-bootstrap";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
 import NavDropdown from "react-bootstrap/NavDropdown";
 import { Preset } from "../data/presets";
+import DebugBar from "./DebugBar";
 import InfoTooltip from "./InfoTooltip";
 import ConnectNNearestNodesModal from "./modals/ConnectNNearestNodesModal";
 import TutorialModal from "./modals/TutorialModal";
@@ -12,15 +20,16 @@ export type EditModeAction = "Ok" | "Cancel";
 export type ClearScope = "Connections" | "All";
 export type RunSpeed = 0.5 | 1.0 | 2.0 | "Skip";
 export type EditMode = "Move" | "Draw" | "Delete";
+export type RunMode = "Auto" | "Debug" | "None";
 
 function Navigation({
   editMode,
   runProgress,
   runSpeed,
-  layout,
   phaseNumber,
   maxConnectNearestNodesN,
   progressBarVariant,
+  runMode,
   onEditModeChange,
   onLayoutChange,
   onRunSpeedChange,
@@ -31,16 +40,21 @@ function Navigation({
   onClear,
   onAddNode,
   onRun,
+  onDebug,
   onStop,
   onSkip,
+  onDebugBack,
+  onDebugNext,
+  onDebugSkipSubphase,
+  onDebugSkipPhase,
 }: {
-  layout: cytoscape.LayoutOptions;
   editMode: EditMode;
   runProgress?: number;
   runSpeed: RunSpeed;
   phaseNumber?: number;
   maxConnectNearestNodesN: number;
   progressBarVariant: "primary" | "warning";
+  runMode: RunMode;
   onEditModeChange: (editMode: EditMode, action?: EditModeAction) => void;
   onRunSpeedChange: (runSpeed: RunSpeed) => void;
   onLayoutChange: (layout: cytoscape.LayoutOptions) => void;
@@ -51,8 +65,13 @@ function Navigation({
   onClear: (deleteScope: ClearScope) => void;
   onAddNode: () => void;
   onRun: () => void;
+  onDebug: () => void;
   onStop: () => void;
   onSkip: () => void;
+  onDebugBack: () => void;
+  onDebugNext: () => void;
+  onDebugSkipSubphase: () => void;
+  onDebugSkipPhase: () => void;
 }) {
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [showConnectNNearestNodesModal, setShowConnectNNearestNodesModal] =
@@ -90,19 +109,29 @@ function Navigation({
                 </span>
               ) : (
                 <>
-                  <Button
-                    variant={runProgress ? "success" : "warning"}
-                    onClick={runProgress ? onSkip : onRun}
-                    className="me-4"
-                  >
-                    <i
-                      className={`bi me-1 ${
-                        runProgress ? "bi-skip-forward-fill" : "bi-play-fill"
-                      }`}
-                    ></i>
-                    {runProgress ? "Skip" : "Run"}
-                  </Button>
-                  {runProgress ? (
+                  <ButtonGroup className="me-4">
+                    <Button
+                      variant="outline-warning"
+                      onClick={onRun}
+                      active={runMode === "Auto"}
+                    >
+                      <i className="bi-play-fill me-1"></i>
+                      Auto
+                    </Button>
+                    {!runProgress ? (
+                      <Button
+                        variant="outline-success"
+                        onClick={onDebug}
+                        active={runMode === "Debug"}
+                      >
+                        <i className="bi-bug-fill me-1"></i>
+                        Debug
+                      </Button>
+                    ) : (
+                      ""
+                    )}
+                  </ButtonGroup>
+                  {runMode !== "None" ? (
                     <div className="d-flex align-items-center">
                       <Button
                         variant="danger"
@@ -115,17 +144,17 @@ function Navigation({
                       <ProgressBar
                         className="me-4"
                         variant={progressBarVariant}
-                        animated
+                        animated={runMode === "Auto"}
                         style={{ width: "20rem" }}
                         now={runProgress}
                       />
                       <Badge className="me-4" bg="primary">
                         {phaseNumber}
                       </Badge>
-                      <InfoTooltip infoText="The number on the left displays the highest node degree."></InfoTooltip>
                       <Form.Check
                         inline
                         checked={runSpeed === 0.5}
+                        disabled={runMode !== "Auto"}
                         className="text-secondary"
                         label="x0.5"
                         onChange={() => onRunSpeedChange(0.5)}
@@ -134,6 +163,7 @@ function Navigation({
                       <Form.Check
                         inline
                         checked={runSpeed === 1.0}
+                        disabled={runMode !== "Auto"}
                         className="text-secondary"
                         label="x1.0"
                         onChange={() => onRunSpeedChange(1.0)}
@@ -142,6 +172,7 @@ function Navigation({
                       <Form.Check
                         inline
                         checked={runSpeed === 2.0}
+                        disabled={runMode !== "Auto"}
                         className="text-secondary"
                         label="x2.0"
                         onChange={() => onRunSpeedChange(2.0)}
@@ -235,6 +266,11 @@ function Navigation({
                         <NavDropdown.Item onClick={() => onLoadPreset("Star")}>
                           Star
                         </NavDropdown.Item>
+                        <NavDropdown.Item
+                          onClick={() => onLoadPreset("Square")}
+                        >
+                          Square
+                        </NavDropdown.Item>
                         <NavDropdown.Divider />
                         <NavDropdown.Item
                           onClick={() => onLoadPreset("Random")}
@@ -261,7 +297,7 @@ function Navigation({
               )}
             </Nav>
             <Nav>
-              {!!runProgress || (
+              {runMode === "None" ? (
                 <div className="d-flex align-items-center">
                   <Form.Check
                     inline
@@ -291,11 +327,19 @@ function Navigation({
                     Tutorial?
                   </Nav.Link>
                 </div>
-              )}
+              ) : null}
             </Nav>
           </Navbar.Collapse>
         </Container>
       </Navbar>
+      {runMode === "Debug" ? (
+        <DebugBar
+          onBack={onDebugBack}
+          onNext={onDebugNext}
+          onSkipSubphase={onDebugSkipSubphase}
+          onSkipPhase={onDebugSkipPhase}
+        ></DebugBar>
+      ) : null}
       <TutorialModal
         show={showTutorialModal}
         onShowChange={(show) => setShowTutorialModal(show)}
