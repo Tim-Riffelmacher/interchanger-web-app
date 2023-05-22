@@ -19,6 +19,7 @@ export type DebugHistoryMoveBody = {
     edgeIdToAdd: EdgeId;
     edgeIdToRemove: EdgeId;
     updatedEdgeIdsInT: EdgeId[];
+    updatedLabelledNodeIds: NodeId[];
   }[];
 };
 
@@ -258,6 +259,9 @@ export default class Algorithm<T> {
                 updatedEdgeIdsInT: spanningTree
                   .getFlatEdges()
                   .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId)),
+                updatedLabelledNodeIds: Object.keys(labelledNodes).map((key) =>
+                  Number(key)
+                ),
               });
               ////
               // End of updating the history.
@@ -269,6 +273,9 @@ export default class Algorithm<T> {
                 nodeIdForPotentialPropagate,
                 labelledNode.neighbourNodeId
               );
+
+              // TODO(trm): Investigate if this produces errors, not part of algorithm
+              delete labelledNodes[nodeIdForPotentialPropagate];
 
               ////
               // Start of updating the history.
@@ -286,6 +293,9 @@ export default class Algorithm<T> {
                 updatedEdgeIdsInT: spanningTree
                   .getFlatEdges()
                   .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId)),
+                updatedLabelledNodeIds: Object.keys(labelledNodes).map((key) =>
+                  Number(key)
+                ),
               });
               ////
               // End of updating the history.

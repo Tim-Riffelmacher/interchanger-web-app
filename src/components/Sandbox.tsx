@@ -32,6 +32,7 @@ import randomHexColor, { HexColor } from "../utils/others/randomHexColor";
 import DebugInfo from "./modals/DebugInfo";
 import debugInfoTextTemplates from "../data/debugInfoTextTemplates";
 import { DebugHistoryLabelBody } from "../utils/algorithm/Algorithm";
+import has from "../utils/others/has";
 const avsdf = require("cytoscape-avsdf");
 
 cytoscape.use(avsdf);
@@ -78,10 +79,10 @@ function Sandbox() {
 
   // Run progress and more.
   const [runProgress, setRunProgress] = useState<number | null>(null);
-  const runProgressRef = useRef(runProgress);
-  runProgressRef.current = runProgress;
 
   const [runMode, setRunMode] = useState<RunMode>("None");
+  const runModeRef = useRef(runMode);
+  runModeRef.current = runMode;
 
   const [runSpeed, setRunSpeed] = useState<number>(1);
   const runSpeedRef = useRef(runSpeed);
@@ -149,6 +150,8 @@ function Sandbox() {
       debugHistory[phaseIndex].subphases[subphaseIndex];
 
     setPhaseNumber(debugHistory[phaseIndex].k);
+
+    let newProgressBarVariant: typeof progressBarVariant = "primary";
 
     // Check if this is the last record in debug history.
     if (debugHistoryRecord.finished) {
@@ -321,7 +324,7 @@ function Sandbox() {
                 hexColor: Colors.WARNING,
               },
             ],
-            []
+            propagatedMove.updatedLabelledNodeIds
           );
           colorCyEdges(
             [
@@ -335,6 +338,8 @@ function Sandbox() {
             ],
             propagatedMove.updatedEdgeIdsInT
           );
+
+          newProgressBarVariant = "warning";
         } else {
           colorCyNodes(
             [
@@ -361,6 +366,8 @@ function Sandbox() {
         }
       }
     }
+
+    setProgressBarVariant(newProgressBarVariant);
   }, [debugHistoryComplexIndex]);
 
   useEffect(() => {
@@ -447,21 +454,18 @@ function Sandbox() {
     cyCoreRef.current.on("dragfreeon", "node", (event) => {
       const eventNode = event.target as NodeSingular;
       const copiedCyNodes = deepCopy(cyNodesRef.current);
-      const node = copiedCyNodes.find((cyNode) =>
+      const cyNode = copiedCyNodes.find((cyNode) =>
         equalId(cyNode.data.id, eventNode.id())
       );
-      if (!node)
+      if (!cyNode)
         throw new Error(
           "Node position cannot be updated, because there is no node with the provided id."
         );
-      node.position = eventNode.position();
+      cyNode.position = eventNode.position();
       setCyNodes(copiedCyNodes);
     });
     cy.on("select", "node", (event) => {
-      if (
-        runProgressRef.current !== undefined ||
-        editModeRef.current !== "Delete"
-      )
+      if (runModeRef.current !== "None" || editModeRef.current !== "Delete")
         return;
 
       const eventNode = event.target as NodeSingular;
@@ -485,10 +489,7 @@ function Sandbox() {
       setCyNodes(copiedCyNodes);
     });
     cy.on("select", "edge", (event) => {
-      if (
-        runProgressRef.current !== undefined ||
-        editModeRef.current !== "Delete"
-      )
+      if (runModeRef.current !== "None" || editModeRef.current !== "Delete")
         return;
 
       const eventEdge = event.target as EdgeSingular;
@@ -505,7 +506,7 @@ function Sandbox() {
       setCyEdges(copiedCyEdges);
     });
     cy.on("cxttap", "node", async (event) => {
-      if (runProgressRef.current !== undefined) return;
+      if (runModeRef.current !== "None") return;
 
       const eventNode = event.target as NodeSingular;
       setCyNodeIdForRename(Number(eventNode.id()));
@@ -579,69 +580,6 @@ function Sandbox() {
       setAutoRunInterval(interval);
     };
     setupInterval();
-
-    /* // Calculate overall history length.
-    let composedHistoryLength = 0;
-    for (const spanningTreePhase of spanningTreeHistory) {
-      composedHistoryLength += spanningTreePhase.phase.length;
-      for (const spanningTreeRecord of spanningTreePhase.phase) {
-        composedHistoryLength += spanningTreeRecord.propagatedMoves.length;
-      }
-    }
-
-    let composedHistoryIndex = 0;
-    let lastMove = spanningTreeHistory[0].phase[0].move;
-    for (const spanningTreePhase of spanningTreeHistory) {
-      setPhaseNumber(spanningTreePhase.k);
-
-      for (const spanningTreeRecord of spanningTreePhase.phase) {
-        const composedMoves = [spanningTreeRecord.move];
-        if (spanningTreeRecord.propagatedMoves.length !== 0) {
-          composedMoves.unshift(
-            spanningTreeRecord.propagatedMoves[
-              spanningTreeRecord.propagatedMoves.length - 1
-            ]
-          );
-          composedMoves.unshift(...spanningTreeRecord.propagatedMoves);
-          composedMoves.unshift(lastMove);
-        }
-
-        for (let i = 0; i < composedMoves.length; i++) {
-          if (stopIndicatorRef.current) break;
-
-          const singleMove = composedMoves[i];
-
-          const edgeIdsToColor = singleMove
-            .getFlatEdges()
-            .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId));
-          colorCyEdges(
-            edgeIdsToColor,
-            i < composedMoves.length - 2 ? "#ffc107" : Colors.PRIMARY,
-            true
-          );
-
-          if (i < composedMoves.length - 2) setProgressBarVariant("warning");
-          else setProgressBarVariant("primary");
-
-          if (
-            composedMoves.length === 1 ||
-            (i !== 0 && i !== composedMoves.length - 2)
-          )
-            composedHistoryIndex++;
-          setRunProgress(100 * (composedHistoryIndex / composedHistoryLength));
-
-          if (runSpeedRef.current !== "Skip")
-            await sleep(1500 * (1 / runSpeedRef.current));
-        }
-
-        lastMove = spanningTreeRecord.move;
-      }
-    }
-    setRunProgress(undefined);
-    setRunSpeed(1.0);
-    setPhaseNumber(undefined);
-    if (!stopIndicatorRef.current) setShowStatsModal(true);
-    stopIndicatorRef.current = false;*/
   };
 
   const debugRun = () => {
@@ -724,6 +662,7 @@ function Sandbox() {
     setRunSpeed(1);
     setRunProgress(null);
     setPhaseNumber(null);
+    setProgressBarVariant("primary");
     setAutoDebugAction("SkipSubphase");
     setRunMode("None");
     setDebugHistory(null);
