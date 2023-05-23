@@ -33,6 +33,7 @@ import DebugInfo from "./modals/DebugInfo";
 import debugInfoTextTemplates from "../data/debugInfoTextTemplates";
 import { DebugHistoryLabelBody } from "../utils/algorithm/Algorithm";
 import has from "../utils/others/has";
+import ToastDepot from "./toasts/ToastDepot";
 const avsdf = require("cytoscape-avsdf");
 
 cytoscape.use(avsdf);
@@ -129,6 +130,7 @@ function Sandbox() {
   const [showRenameNodeModal, setShowRenameNodeModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
+  const toastDepotRef = useRef<any>(null);
   const [algorithmIsLoading, setAlgorithmIsLoading] = useState(false);
 
   useEffect(() => {
@@ -588,11 +590,6 @@ function Sandbox() {
   };
 
   const loadAlgorithm = async () => {
-    setAlgorithmIsLoading(true);
-    setRunProgress(0);
-
-    await retreat();
-
     // Transform the cytoscape graph into the internally used graph for the algorithm.
     const graph = new Graph<{}>();
     const nodes = cyNodes.map((cyNode) => ({
@@ -606,8 +603,31 @@ function Sandbox() {
     }
     graph.addEdges(...edges);
 
+    if (cyNodes.length === 0) {
+      toastDepotRef.current.show(
+        "There must be at least one interchange to be able to start the algorithm.",
+        "warning"
+      );
+      return;
+    } else if (graph.breadthFirstSearch().length !== 1) {
+      toastDepotRef.current.show(
+        "Every interchange has to be reachable from every other interchange to be able to start the algorithm.",
+        "warning"
+      );
+      return;
+    }
+
+    setAlgorithmIsLoading(true);
+    setRunProgress(0);
+
+    toastDepotRef.current.show("Algorithm is running...");
+
+    await retreat();
+
     const algorithm = new Algorithm();
     const { stats, debugHistory } = algorithm.run(graph);
+
+    toastDepotRef.current.show("Algorithm finished.");
 
     // Set debug history right away.
     setDebugHistory(debugHistory);
@@ -911,7 +931,7 @@ function Sandbox() {
           onDebugSkipSubphase={() => handleDebugAction("SkipSubphase")}
           onDebugSkipPhase={() => handleDebugAction("SkipPhase")}
         ></NavigationBar>
-        <div id="cy-container" className="flex-grow-1">
+        <div id="cy-container" className="flex-grow-1 overflow-hidden">
           <CytoscapeComponent
             className="w-100 h-100"
             cy={setupCytoscape}
@@ -979,6 +999,7 @@ function Sandbox() {
           {...debugInfoTextTemplates(debugHistoryComplexIndex.step)}
         ></DebugInfo>
       ) : null}
+      <ToastDepot ref={toastDepotRef}></ToastDepot>
     </>
   );
 }

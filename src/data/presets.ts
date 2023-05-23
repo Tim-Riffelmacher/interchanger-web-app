@@ -69,21 +69,35 @@ function loadStarPreset(
   for (let i = 0; i < 3; i++) {
     for (let j = 0; j < 3; j++) {
       if (i === 1 && j === 1) continue;
-      cyNodes.push(buildCyNode(nodeId++, { x: j * 200, y: i * 200 }));
+
+      let offsetX = 0;
+      let offsetY = 0;
+      if (i === 1) {
+        if (j === 0) offsetX = 50;
+        else offsetX = -50;
+      }
+      if (j === 1) {
+        if (i === 0) offsetY = 50;
+        else offsetY = -50;
+      }
+
+      cyNodes.push(
+        buildCyNode(nodeId++, { x: j * 200 + offsetX, y: i * 200 + offsetY })
+      );
     }
   }
   for (let i = 0; i < 4; i++) {
     cyNodes.push(
       buildCyNode(nodeId++, {
         x: Math.floor(i / 2) * 400,
-        y: i % 2 === 0 ? -300 : 700,
+        y: i % 2 === 0 ? -325 : 725,
       })
     );
   }
   for (let i = 0; i < 4; i++) {
     cyNodes.push(
       buildCyNode(nodeId++, {
-        x: i % 2 === 0 ? -300 : 700,
+        x: i % 2 === 0 ? -325 : 725,
         y: Math.floor(i / 2) * 400,
       })
     );

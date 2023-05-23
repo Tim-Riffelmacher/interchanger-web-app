@@ -297,7 +297,7 @@ function NavigationBar({
                         <NavDropdown.Item
                           onClick={() => onClear("Connections")}
                         >
-                          Connections
+                          Links
                         </NavDropdown.Item>
                         <NavDropdown.Item onClick={() => onClear("All")}>
                           All
