@@ -276,6 +276,10 @@ export default class Algorithm<T> {
 
               // TODO(trm): Investigate if this produces errors, not part of algorithm
               delete labelledNodes[nodeIdForPotentialPropagate];
+              nodeIdsForPotentialPropagate.push(
+                labelledNode.edge[0],
+                labelledNode.edge[1]
+              );
 
               ////
               // Start of updating the history.
