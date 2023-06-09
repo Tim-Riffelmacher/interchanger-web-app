@@ -4,7 +4,6 @@ import {
   Button,
   ButtonGroup,
   Container,
-  Form,
   ProgressBar,
   Spinner,
 } from "react-bootstrap";
@@ -24,6 +23,7 @@ export type EditMode = "Move" | "Draw" | "Delete";
 export type RunMode = "Auto" | "Debug" | "None";
 
 function NavigationBar({
+  showDebugHints,
   editMode,
   runProgress,
   runSpeed,
@@ -52,7 +52,9 @@ function NavigationBar({
   onDebugNext,
   onDebugSkipSubphase,
   onDebugSkipPhase,
+  onShowDebugHints,
 }: {
+  showDebugHints: boolean;
   editMode: EditMode;
   runProgress?: number;
   autoDebugAction: DebugAction;
@@ -81,6 +83,7 @@ function NavigationBar({
   onDebugNext: () => void;
   onDebugSkipSubphase: () => void;
   onDebugSkipPhase: () => void;
+  onShowDebugHints: (show: boolean) => void;
 }) {
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [showConnectNNearestNodesModal, setShowConnectNNearestNodesModal] =
@@ -351,10 +354,12 @@ function NavigationBar({
       </Navbar>
       {runMode === "Debug" ? (
         <DebugRunBar
+          showDebugHints={showDebugHints}
           onBack={onDebugBack}
           onNext={onDebugNext}
           onSkipSubphase={onDebugSkipSubphase}
           onSkipPhase={onDebugSkipPhase}
+          onShowDebugHints={onShowDebugHints}
         ></DebugRunBar>
       ) : runMode === "Auto" ? (
         <AutoRunBar

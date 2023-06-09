@@ -3,7 +3,7 @@
 - [x] Add tutorial modal
 - [x] Add cube preset
 - [x] Finalize debug functionality
-- [ ] Add debug info-windows
+- [x] Add debug info-windows
 - [x] Make stop button work
 - [ ] Refactor everything
 - [ ] Extract types and enums to separate file
@@ -17,3 +17,4 @@
 - [x] Toasts on error instead of unvisible
 - [ ] Test everything
 - [x] Fix bug on star connecting all and being at max degree 4
+- [ ] Why are reducible adjacent edges also in F

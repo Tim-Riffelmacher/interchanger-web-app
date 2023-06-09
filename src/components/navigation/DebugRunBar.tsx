@@ -1,15 +1,19 @@
-import { Navbar, Container, Button } from "react-bootstrap";
+import { Navbar, Container, Button, Form } from "react-bootstrap";
 
 function DebugRunBar({
+  showDebugHints,
   onNext,
   onBack,
   onSkipSubphase,
   onSkipPhase,
+  onShowDebugHints,
 }: {
+  showDebugHints: boolean;
   onNext: () => void;
   onBack: () => void;
   onSkipSubphase: () => void;
   onSkipPhase: () => void;
+  onShowDebugHints: (show: boolean) => void;
 }) {
   return (
     <Navbar
@@ -36,9 +40,16 @@ function DebugRunBar({
             Skip subphase
           </Button>
           <Button variant="outline-info" onClick={onSkipPhase}>
-            <i className="bi-skip-forward-fill me-1"></i>
+            <i className="bi-skip-forward-fill"></i>
             Skip phase
           </Button>
+          <Form.Check
+            type="checkbox"
+            label="Show hints"
+            className="text-secondary ms-4"
+            onChange={(event) => onShowDebugHints(event.target.checked)}
+            checked={showDebugHints}
+          />
         </Navbar.Collapse>
       </Container>
     </Navbar>

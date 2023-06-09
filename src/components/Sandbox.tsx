@@ -27,12 +27,11 @@ import { buildCyNode } from "../data/presets";
 import equalId from "../utils/others/equalId";
 import RenameNodeModal from "./modals/RenameNodeModal";
 import StatsModal, { Stats } from "./modals/StatsModal";
-import sleep, { retreat } from "../utils/others/sleep";
+import { retreat } from "../utils/others/sleep";
 import randomHexColor, { HexColor } from "../utils/others/randomHexColor";
 import DebugInfo from "./modals/DebugInfo";
 import debugInfoTextTemplates from "../data/debugInfoTextTemplates";
 import { DebugHistoryLabelBody } from "../utils/algorithm/Algorithm";
-import has from "../utils/others/has";
 import ToastDepot from "./toasts/ToastDepot";
 const avsdf = require("cytoscape-avsdf");
 
@@ -118,6 +117,8 @@ function Sandbox() {
   const debugHistoryComplexIndexRef = useRef(debugHistoryComplexIndex);
   debugHistoryComplexIndexRef.current = debugHistoryComplexIndex;
 
+  const [showDebugHints, setShowDebugHints] = useState(true);
+
   // Layout.
   const [layout, setLayout] = useState<cytoscape.LayoutOptions>({
     name: "preset",
@@ -183,7 +184,7 @@ function Sandbox() {
         [
           {
             nodeIds: debugHistoryRecord.nodeIdsOfDegreeK,
-            hexColor: Colors.PRIMARY,
+            hexColor: Colors.INFO,
           },
         ],
         debugHistoryRecord.labelledNodeIds
@@ -194,7 +195,7 @@ function Sandbox() {
         [
           {
             nodeIds: debugHistoryRecord.nodeIdsOfDegreeK,
-            hexColor: Colors.PRIMARY,
+            hexColor: Colors.INFO,
           },
           {
             nodeIds: debugHistoryRecord.nodeIdsOfDegreeKMinus1,
@@ -209,7 +210,7 @@ function Sandbox() {
         [
           {
             nodeIds: debugHistoryRecord.nodeIdsOfDegreeK,
-            hexColor: Colors.PRIMARY,
+            hexColor: Colors.INFO,
           },
           {
             nodeIds: debugHistoryRecord.nodeIdsOfDegreeKMinus1,
@@ -902,6 +903,7 @@ function Sandbox() {
     <>
       <div className="d-flex flex-column w-100 h-100">
         <NavigationBar
+          showDebugHints={showDebugHints}
           progressBarVariant={progressBarVariant}
           editMode={editMode}
           algorithmIsLoading={algorithmIsLoading}
@@ -930,6 +932,7 @@ function Sandbox() {
           onDebugBack={() => handleDebugAction("Back")}
           onDebugSkipSubphase={() => handleDebugAction("SkipSubphase")}
           onDebugSkipPhase={() => handleDebugAction("SkipPhase")}
+          onShowDebugHints={setShowDebugHints}
         ></NavigationBar>
         <div id="cy-container" className="flex-grow-1 overflow-hidden">
           <CytoscapeComponent
@@ -994,9 +997,15 @@ function Sandbox() {
         }
         onShowChange={setShowStatsModal}
       ></StatsModal>
-      {debugHistoryComplexIndex ? (
+      {debugHistoryComplexIndex && debugHistory && showDebugHints ? (
         <DebugInfo
-          {...debugInfoTextTemplates(debugHistoryComplexIndex.step)}
+          {...debugInfoTextTemplates(
+            debugHistoryComplexIndex.step,
+            debugHistory[debugHistoryComplexIndex.phaseIndex].k,
+            debugHistory[debugHistoryComplexIndex.phaseIndex].subphases[
+              debugHistoryComplexIndex.subphaseIndex
+            ].containsMove
+          )}
         ></DebugInfo>
       ) : null}
       <ToastDepot ref={toastDepotRef}></ToastDepot>
