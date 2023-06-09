@@ -727,7 +727,7 @@ function Sandbox() {
   };
 
   const renameNode = (name: string) => {
-    if (!cyNodeIdForRename)
+    if (cyNodeIdForRename === null)
       throw new Error(
         "Node can't be renamed, because no node id for rename is stored."
       );
