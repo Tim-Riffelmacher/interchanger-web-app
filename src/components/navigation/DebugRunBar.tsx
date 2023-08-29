@@ -40,7 +40,7 @@ function DebugRunBar({
             Skip subphase
           </Button>
           <Button variant="outline-info" onClick={onSkipPhase}>
-            <i className="bi-skip-forward-fill"></i>
+            <i className="bi-skip-forward-fill me-1"></i>
             Skip phase
           </Button>
           <Form.Check
