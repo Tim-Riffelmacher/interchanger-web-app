@@ -873,14 +873,17 @@ function Sandbox() {
       copiedComplexIndex.subphaseIndex++;
     }
 
-    if (copiedComplexIndex.subphaseIndex < 0) {
+    if (
+      copiedComplexIndex.subphaseIndex < 0 ||
+      !debugHistoryRef.current[copiedComplexIndex.phaseIndex]
+    ) {
       copiedComplexIndex.subphaseIndex =
         debugHistoryRef.current[copiedComplexIndex.phaseIndex - 1]?.subphases
           .length - 1;
       copiedComplexIndex.phaseIndex--;
     } else if (
       copiedComplexIndex.subphaseIndex >=
-      debugHistoryRef.current[copiedComplexIndex.phaseIndex].subphases.length
+      debugHistoryRef.current[copiedComplexIndex.phaseIndex]?.subphases.length
     ) {
       copiedComplexIndex.subphaseIndex = 0;
       copiedComplexIndex.phaseIndex++;
