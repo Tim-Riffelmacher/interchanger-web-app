@@ -1,5 +1,8 @@
 import { DebugHistoryStep } from "../components/Sandbox";
 
+/**
+ * The hints for execution.
+ */
 function debugInfoTextTemplates(
   debugHistoryStep: DebugHistoryStep,
   k: number,
@@ -36,15 +39,15 @@ function debugInfoTextTemplates(
     };
   } else if (debugHistoryStep === DebugHistoryStep.SHOW_OUTER_COMPONENT_EDGES) {
     return {
-      title: "Edges in O",
-      text: `Find all edges of O (dashed blue) connecting two components of C (different colored). Furthermore, the connected components must not contain nodes of degree ${k} or ${
+      title: "Edges in H",
+      text: `Find all edges of H (dashed blue) connecting two components of C (different colored). Furthermore, the connected components must not contain nodes of degree ${k} or ${
         k - 1
       }. If there are no more left the algorithm terminates.`,
     };
   } else if (debugHistoryStep === DebugHistoryStep.SHOW_CYCLE) {
     return {
       title: "Form a cycle",
-      text: "Form a cycle (blue) with any edge (dashed blue) of O.",
+      text: "Form a cycle (blue) with any edge (dashed blue) of H.",
     };
   }
 
@@ -64,7 +67,5 @@ function debugInfoTextTemplates(
     };
   }
 }
-
-// TODO(trm): Sagen ob man sich gerade auf Baum oder Graph bezieht
 
 export default debugInfoTextTemplates;

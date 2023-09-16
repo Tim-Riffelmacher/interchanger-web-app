@@ -1,3 +1,6 @@
+/**
+ * Calculates the euclidean distance for two positions.
+ */
 export default function euclideanDistance(
   position1: { x: number; y: number },
   position2: { x: number; y: number }

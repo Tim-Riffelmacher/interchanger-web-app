@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 
+/**
+ * The modal to input how many interchanges to connect.
+ */
 function ConnectNNearestNodesModal({
   show,
   maxN,

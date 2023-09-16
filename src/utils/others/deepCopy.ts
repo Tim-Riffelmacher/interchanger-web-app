@@ -1,3 +1,6 @@
+/**
+ * Makes a deep copy of an object.
+ */
 export default function deepCopy<T>(source: T): T {
   return Array.isArray(source)
     ? source.map((element) => deepCopy(element))

@@ -5,6 +5,9 @@ import { v4 as uuidv4 } from "uuid";
 
 const AUTO_HIDE_DELAY = 3000;
 
+/**
+ * A container that manages toast pop-ups at the bottom.
+ */
 const ToastDepot = forwardRef(({}, ref) => {
   const [toasts, setToasts] = useState<
     {

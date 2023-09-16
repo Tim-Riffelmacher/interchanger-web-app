@@ -11,6 +11,9 @@ export type Stats = {
   }[];
 };
 
+/**
+ * The modal that shows the algorithm stats at the end.
+ */
 function StatsModal({
   show,
   stats,

@@ -1,5 +1,8 @@
 import { Navbar, Container, Button, Form } from "react-bootstrap";
 
+/**
+ * The control bar at the top to manage execution in debug mode.
+ */
 function DebugRunBar({
   showDebugHints,
   onNext,

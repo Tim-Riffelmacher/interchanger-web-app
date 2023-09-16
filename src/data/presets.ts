@@ -4,6 +4,9 @@ import { EdgeId, NodeId } from "../utils/algorithm/Graph";
 
 export type Preset = "Germany" | "Star" | "Square" | "Random";
 
+/**
+ * Loads the available presets and provides the data.
+ */
 export default function loadPreset(preset: Preset) {
   const cyNodes: ElementDefinition[] = [];
   const cyEdges: ElementDefinition[] = [];

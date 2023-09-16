@@ -1,6 +1,9 @@
 import { Navbar, Container, Button, ButtonGroup } from "react-bootstrap";
 import { DebugAction } from "../Sandbox";
 
+/**
+ * The control bar at the top for managing execution in auto mode.
+ */
 function AutoRunBar({
   runSpeed,
   autoDebugAction,

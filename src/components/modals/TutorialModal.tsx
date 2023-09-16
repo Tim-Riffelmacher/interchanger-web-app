@@ -2,6 +2,9 @@ import { Accordion } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 
+/**
+ * The modal that gives a short explanation to the user.
+ */
 function TutorialModal({
   show,
   onShowChange,

@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { Modal, Form, Button } from "react-bootstrap";
 
+/**
+ * The modal to appear for renaming a interchange/city.
+ */
 function RenameNodeModal({
   show,
   oldName,

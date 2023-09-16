@@ -1,5 +1,8 @@
 import { Alert } from "react-bootstrap";
 
+/**
+ * The window on the side for showing hints while the algorithm is executed.
+ */
 function DebugInfo({ title, text }: { title: string; text: string }) {
   return (
     <Alert

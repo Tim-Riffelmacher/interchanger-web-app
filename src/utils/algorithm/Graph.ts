@@ -1,6 +1,9 @@
 export type NodeId = number;
 export type EdgeId = `edge__${number}__${number}`;
 
+/**
+ * A node inside the graph.
+ */
 export class Node<T> {
   public readonly nodeId: NodeId;
   public readonly data: T;
@@ -11,14 +14,23 @@ export class Node<T> {
   }
 }
 
+/**
+ * The graph for use inside the algorithm.
+ */
 export default class Graph<T> {
   private nodeIds: Record<NodeId, Node<T>> = {};
   private nodes: Map<Node<T>, Node<T>[]> = new Map();
 
+  /**
+   * Add nodes with certain data to the graph.
+   */
   public addNodes(...nodes: { nodeId: NodeId; data: T }[]) {
     nodes.forEach((node) => this.addNode(node.nodeId, node.data));
   }
 
+  /**
+   * Add a single node with certain data to the graph.
+   */
   public addNode(nodeId: NodeId, data: T): Node<T> {
     if (this.nodeIds[nodeId])
       throw new Error(
@@ -31,6 +43,9 @@ export default class Graph<T> {
     return node;
   }
 
+  /**
+   * Remove a single node from the graph.
+   */
   public removeNode(nodeId: NodeId): Node<T> | null {
     const nodeToRemove = this.nodeIds[nodeId];
     if (!nodeToRemove)
@@ -48,10 +63,16 @@ export default class Graph<T> {
     return nodeToRemove;
   }
 
+  /**
+   * Add edges to the graph.
+   */
   public addEdges(...edges: [NodeId, NodeId][]): void {
     edges.forEach((edge) => this.addEdge(edge[0], edge[1]));
   }
 
+  /**
+   * Add a single edge to the graph.
+   */
   public addEdge(sourceId: NodeId, destinationId: NodeId): void {
     if (sourceId === destinationId)
       throw new Error(
@@ -74,10 +95,16 @@ export default class Graph<T> {
     this.nodes.get(destinationNode)!.push(sourceNode);
   }
 
+  /**
+   * Remove edges from the graph.
+   */
   public removeEdges(...edges: [NodeId, NodeId][]): void {
     edges.forEach((edge) => this.removeEdge(edge[0], edge[1]));
   }
 
+  /**
+   * Remove a single edge from the graph.
+   */
   public removeEdge(sourceId: NodeId, destinationId: NodeId): void {
     const sourceNode = this.nodeIds[sourceId];
     const destinationNode = this.nodeIds[destinationId];
@@ -100,6 +127,9 @@ export default class Graph<T> {
     );
   }
 
+  /**
+   * A helper function for bfs.
+   */
   private breadthFirstSearchAux(
     node: Node<T>,
     visited: Map<Node<T>, boolean>,
@@ -126,6 +156,9 @@ export default class Graph<T> {
     }
   }
 
+  /**
+   * Executes a bfs on the graph and returns the visited components.
+   */
   public breadthFirstSearch() {
     const visited: Map<Node<T>, boolean> = new Map();
     const visitedComponents: {
@@ -145,6 +178,9 @@ export default class Graph<T> {
     return visitedComponents;
   }
 
+  /**
+   * Returns the max node degree of the graph.
+   */
   public getMaxNodeDegree() {
     let maxNodeDegree = 0;
     this.nodes.forEach((adjacentNodes) => {
@@ -153,12 +189,18 @@ export default class Graph<T> {
     return maxNodeDegree;
   }
 
+  /**
+   * Returns all nodes of a given degree.
+   */
   public getNodesOfDegree(k: number) {
     return Array.from(this.nodes.entries())
       .filter(([node, adjacentNodes]) => adjacentNodes.length === k)
       .map(([node]) => node);
   }
 
+  /**
+   * Get all edges that are adjacent to the given list of nodes.
+   */
   public getAdjacentEdges(...nodes: Node<T>[]) {
     const adjacentEdges: [Node<T>, Node<T>][] = [];
     this.nodes.forEach((adjacentNodes, node) =>
@@ -180,6 +222,9 @@ export default class Graph<T> {
     return adjacentEdges;
   }
 
+  /**
+   * Clones the whole graph mainly for reuse.
+   */
   public clone(clearEdges: boolean) {
     const clonedGraph = new Graph<T>();
     clonedGraph.nodeIds = { ...this.nodeIds };
@@ -193,18 +238,30 @@ export default class Graph<T> {
     return clonedGraph;
   }
 
+  /**
+   * Get all nodes.
+   */
   public getNodes() {
     return this.nodeIds;
   }
 
+  /**
+   * Get all nodes (flat).
+   */
   public getFlatNodes() {
     return Object.values(this.nodeIds);
   }
 
+  /**
+   * Get all edges.
+   */
   public getEdges() {
     return this.nodes;
   }
 
+  /**
+   * Get all edges (flat).
+   */
   public getFlatEdges() {
     return Array.from(this.nodes)
       .flatMap(([node, adjecentNodes]) =>
@@ -218,6 +275,9 @@ export default class Graph<T> {
       );
   }
 
+  /**
+   * Check if the graph has a certain edge or not.
+   */
   public hasEdge(sourceId: NodeId, destinationId: NodeId) {
     const sourceNode = this.nodeIds[sourceId];
     const destinationNode = this.nodeIds[destinationId];

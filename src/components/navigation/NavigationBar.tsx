@@ -22,6 +22,9 @@ export type ClearScope = "Connections" | "All";
 export type EditMode = "Move" | "Draw" | "Delete";
 export type RunMode = "Auto" | "Debug" | "None";
 
+/**
+ * The navigation bar at the top that contains all necessary tools.
+ */
 function NavigationBar({
   showDebugHints,
   editMode,

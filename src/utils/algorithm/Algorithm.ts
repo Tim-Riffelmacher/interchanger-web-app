@@ -29,7 +29,7 @@ export type DebugHistory = {
     finished: boolean;
     nodeIdsInT: NodeId[];
     edgeIdsInT: EdgeId[];
-    nodesOfDegreeKLeft: number; // TODO: Remove!
+    nodesOfDegreeKLeft: number;
     nodeIdsOfDegreeK: NodeId[];
     nodeIdsOfDegreeKMinus1: NodeId[];
     edgeIdsInF: EdgeId[]; // Stores all edges in F.
@@ -46,7 +46,13 @@ export type DebugHistory = {
   }[];
 }[];
 
+/**
+ * The algorithm handler.
+ */
 export default class Algorithm<T> {
+  /**
+   * Runs the algorithm on a given graph and returns the result additionally providing stats and history.
+   */
   public run(graph: Graph<T>) {
     if (graph.breadthFirstSearch().length !== 1)
       throw new Error(
@@ -137,7 +143,7 @@ export default class Algorithm<T> {
             edgeIdsInT: spanningTree
               .getFlatEdges()
               .map((edge) => buildEdgeId(edge[0].nodeId, edge[1].nodeId)),
-            nodesOfDegreeKLeft: nodesOfDegreeK.length, // TODO: Remove!
+            nodesOfDegreeKLeft: nodesOfDegreeK.length,
             nodeIdsOfDegreeK: nodesOfDegreeK.map((node) => node.nodeId),
             nodeIdsOfDegreeKMinus1: nodesOfDegreeKMinus1.map(
               (node) => node.nodeId
@@ -274,7 +280,6 @@ export default class Algorithm<T> {
                 labelledNode.neighbourNodeId
               );
 
-              // TODO(trm): Investigate if this produces errors, not part of algorithm
               delete labelledNodes[nodeIdForPotentialPropagate];
               nodeIdsForPotentialPropagate.push(
                 labelledNode.edge[0],
@@ -392,7 +397,7 @@ export default class Algorithm<T> {
       throw new Error(
         "Random neighbour in cycle can't be retrieved, because the node that should be reduced doesn't exist."
       );
-    return cycle[(nodeIndex + 1) % cycle.length]; // TODO(trm): Only for testing non random!
+    return cycle[(nodeIndex + 1) % cycle.length];
   }
 
   /**
@@ -413,6 +418,9 @@ export default class Algorithm<T> {
     return spanningTree;
   }
 
+  /**
+   * Returns a cycle in the given graph that contains the provided node.
+   */
   public getCycle(spanningTree: Graph<T>, startNodeId: NodeId) {
     const startNode = spanningTree.getNodes()[startNodeId];
     if (!startNode)
@@ -448,12 +456,15 @@ export default class Algorithm<T> {
     return stack;
   }
 
+  /**
+   * Calculates the H, F and C for the given graph and spanning tree.
+   */
   public getOuterComponentEdges(
     graph: Graph<T>,
     spanningTree: Graph<T>,
     nodesOfDegreeKAndKMinus1: Node<T>[]
   ) {
-    const F = spanningTree.getAdjacentEdges(...nodesOfDegreeKAndKMinus1); // TODO(trm): there could be doubled edges.
+    const F = spanningTree.getAdjacentEdges(...nodesOfDegreeKAndKMinus1);
     const C = spanningTree.clone(false);
     C.removeEdges(
       ...F.map((edge) => [edge[0].nodeId, edge[1].nodeId] as [NodeId, NodeId])
@@ -476,7 +487,7 @@ export default class Algorithm<T> {
             )
           )
         )
-      ); // TODO(trm): Always source node id < dest node id to save storage.
+      );
 
     const outerComponentEdges = interComponentEdges.filter(
       (interComponentEdge) =>

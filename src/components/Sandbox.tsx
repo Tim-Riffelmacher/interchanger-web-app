@@ -57,6 +57,10 @@ export enum Colors {
   WARNING = "#ffc107",
 }
 
+/**
+ * The sandbox that handles the logic for modeling the highways and interchanges.
+ * It also takes care about the visuals when executing the algorithm.
+ */
 function Sandbox() {
   // Cytoscape.
   const cyCoreRef = useRef<Core | null>(null);
@@ -767,7 +771,6 @@ function Sandbox() {
             equalId(nodeId, Number(cyNode.data.id))
           )
         ) {
-          // TODO(trm): Remove Number(...)!
           cyNode.data.bgColor = color.hexColor;
           cyNode.data.bgOpacity = 1;
           nodeColored = true;
